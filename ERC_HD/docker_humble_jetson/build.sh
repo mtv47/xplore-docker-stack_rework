@@ -1,0 +1,1 @@
+docker build --progress=plain -t ghcr.io/epflxplore/hd:humble-jetson-test -f Dockerfile ..
