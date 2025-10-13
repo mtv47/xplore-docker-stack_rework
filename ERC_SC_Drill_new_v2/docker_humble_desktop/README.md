@@ -1,6 +1,6 @@
 # Docker Humble Desktop - Development Environment
 
-This folder contains the Docker configuration for the **development environment** of the ERC Science Drill system. This setup is designed for desktop development, testing, and debugging with full GUI support and hardware access.
+This folder contains the Docker Compose configuration for the **development environment** of the ERC Science Drill system. This setup is designed for desktop development, testing, and debugging with full GUI support and hardware access.
 
 ## Overview
 
@@ -10,6 +10,7 @@ The Docker Humble Desktop environment provides:
 - **Hardware device access** for testing with actual drill hardware
 - **CycloneDDS** middleware for reliable communication
 - **Development tools** and debugging capabilities
+- **Docker Compose** orchestration for easier container management
 
 ## Files Description
 
@@ -21,8 +22,17 @@ The main Docker image definition that:
 - **Dependencies**: Installs and resolves all ROS package dependencies
 - **Security**: Removes source code from final image (confidential code protection)
 
+### `compose.yaml`
+Docker Compose configuration that defines:
+- **Services**: Two service profiles - `sc-drill` (standard) and `sc-drill-gpu` (GPU-accelerated)
+- **Environment Variables**: All ROS 2 and GUI environment variables
+- **Volume Mounting**: Source code, X11 forwarding, and persistent home directory
+- **Network Configuration**: Host networking for ROS communication
+- **GPU Support**: Optional NVIDIA GPU acceleration with proper device access
+- **Profiles**: Default and GPU profiles for different use cases
+
 ### `Makefile`
-Comprehensive command interface (replaces shell scripts) with all development functionality:
+Comprehensive command interface (replaces shell scripts) with Docker Compose integration:
 
 **Core Commands:**
 - `make build` - Build the SC Drill Desktop image (with cache refresh)
@@ -40,7 +50,7 @@ Comprehensive command interface (replaces shell scripts) with all development fu
 - `make status` - Show containers, volumes, and images status
 - `make clean` - Clean up containers, volumes, and images
 - `make logs` - Show container logs
-- `make docker-check` - Check if Docker is running
+- `make compose-check` - Check if Docker Compose is available
 
 **Key Features:**
 - **X11 Forwarding**: Complete GUI support for ROS tools (RViz, rqt, etc.)
@@ -86,15 +96,55 @@ make logs           # Show container logs
 
 # Maintenance
 make clean          # Clean up (interactive confirmation)
-make docker-check   # Verify Docker is running
+make compose-check  # Verify Docker Compose is available
 make x11-setup      # Setup X11 forwarding
 make gpu-check      # Check GPU availability
 ```
 
+## Docker Compose Usage
+
+This setup uses **Docker Compose** for container orchestration. The `compose.yaml` file defines two service profiles:
+
+### Service Profiles
+- **Default Profile** (`sc-drill`): Standard container without GPU acceleration
+- **GPU Profile** (`sc-drill-gpu`): Container with NVIDIA GPU support
+
+### Direct Docker Compose Commands
+If you prefer using Docker Compose directly instead of the Makefile:
+
+```bash
+# Setup X11 first
+make x11-setup
+
+# Standard mode
+export XAUTH=/tmp/.docker.xauth
+export PARENT_DIR=$(dirname $(pwd))
+docker compose --profile default up -it sc-drill
+
+# GPU mode
+docker compose --profile gpu up -it sc-drill-gpu
+
+# Stop services
+docker compose down
+
+# View status
+docker compose ps
+
+# View logs
+docker compose logs sc-drill
+```
+
+### Environment Variables
+The compose file uses these environment variables:
+- `XAUTH`: X11 authority file path (default: `/tmp/.docker.xauth`)  
+- `PARENT_DIR`: Parent directory path for source mounting (default: `..`)
+- `DISPLAY`: X11 display variable
+
 ## Quick Start
 
 ### Prerequisites
-- **Docker** installed and running
+- **Docker** installed and running  
+- **Docker Compose** available (included with Docker Desktop)
 - **X11 server** running (for GUI applications)
 - **USB permissions** configured for motor controllers
 

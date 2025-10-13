@@ -1,7 +1,7 @@
-# ERC Science & Core Drill Desktop Docker Makefile
+# ERC Science & Core Drill Desktop Docker Compose Makefile
 # Provides convenient commands for managing the SC Drill Desktop containers
 
-.PHONY: help build run attach stop clean docker-check x11-setup gpu-check
+.PHONY: help build run attach stop clean docker-check compose-check x11-setup gpu-check
 
 # Default target
 .DEFAULT_GOAL := help
@@ -19,6 +19,7 @@ IMAGE_NAME = ghcr.io/epflxplore/sc:humble-desktop
 CONTAINER_NAME = sc_humble_desktop
 USERNAME = xplore
 PARENT_DIR = $(shell dirname $(PWD))
+COMPOSE_FILE = compose.yaml
 
 # Export environment variables
 export XAUTH
@@ -26,7 +27,7 @@ export PARENT_DIR
 export DISPLAY
 
 help: ## Show this help message
-	@echo "$(BLUE)ERC Science & Core Drill Desktop Docker Commands$(NC)"
+	@echo "$(BLUE)ERC Science & Core Drill Desktop Docker Compose Commands$(NC)"
 	@echo ""
 	@echo "$(GREEN)Available commands:$(NC)"
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ { printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -34,6 +35,7 @@ help: ## Show this help message
 	@echo "$(BLUE)Examples:$(NC)"
 	@echo "  make build       # Build the SC Drill Desktop image"
 	@echo "  make run         # Run interactive container"
+	@echo "  make run-gpu     # Run with GPU acceleration"
 	@echo "  make attach      # Attach to running container"
 	@echo "  make stop        # Stop the container"
 	@echo ""
@@ -41,6 +43,12 @@ help: ## Show this help message
 docker-check: ## Check if Docker is running
 	@if ! docker info > /dev/null 2>&1; then \
 		echo "$(RED)[ERROR] Docker is not running. Please start Docker and try again.$(NC)"; \
+		exit 1; \
+	fi
+
+compose-check: docker-check ## Check if Docker Compose is available
+	@if ! docker compose version > /dev/null 2>&1; then \
+		echo "$(RED)[ERROR] Docker Compose is not available. Please install Docker Compose and try again.$(NC)"; \
 		exit 1; \
 	fi
 
@@ -75,70 +83,23 @@ gpu-check: ## Check GPU availability for potential GPU acceleration
 		echo "$(YELLOW)[INFO] No NVIDIA GPU detected$(NC)"; \
 	fi
 
-build: docker-check ## Build the SC Drill Desktop Docker image (with cache refresh)
+build: compose-check ## Build the SC Drill Desktop Docker image (with cache refresh)
 	@echo "$(BLUE)[INFO] Building SC Drill Desktop image with fresh cache...$(NC)"
-	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+	docker compose -f $(COMPOSE_FILE) build --pull --no-cache sc-drill
 
-build-quick: docker-check ## Build the SC Drill Desktop Docker image (using cache)
+build-quick: compose-check ## Build the SC Drill Desktop Docker image (using cache)
 	@echo "$(BLUE)[INFO] Building SC Drill Desktop image (using cache)...$(NC)"
-	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+	docker compose -f $(COMPOSE_FILE) build sc-drill
 
-run: docker-check x11-setup ## Run SC Drill Desktop container
+run: compose-check x11-setup ## Run SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Starting SC Drill Desktop container...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v sc_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export DISPLAY=unix\$$DISPLAY; \
-			export QT_X11_NO_MITSHM=1; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash; \
-			/bin/bash"
+	docker compose -f $(COMPOSE_FILE) --profile default up -it sc-drill
 
-run-gpu: docker-check x11-setup gpu-check ## Run SC Drill Desktop container with GPU acceleration
+run-gpu: compose-check x11-setup gpu-check ## Run SC Drill Desktop container with GPU acceleration
 	@echo "$(BLUE)[INFO] Starting SC Drill Desktop container with GPU support...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--runtime=nvidia \
-		--gpus all \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-e NVIDIA_VISIBLE_DEVICES=all \
-		-e NVIDIA_DRIVER_CAPABILITIES=all \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v sc_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export DISPLAY=unix\$$DISPLAY; \
-			export QT_X11_NO_MITSHM=1; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash; \
-			echo '🚀 SC Drill Desktop with GPU acceleration ready!'; \
-			/bin/bash"
+	docker compose -f $(COMPOSE_FILE) --profile gpu up -it sc-drill-gpu
 
-attach: docker-check ## Attach to running SC Drill Desktop container
+attach: compose-check ## Attach to running SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Attaching to SC Drill Desktop container...$(NC)"
 	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
 		echo "$(RED)❌ SC Drill Desktop container '$(CONTAINER_NAME)' is not running$(NC)"; \
@@ -167,33 +128,29 @@ attach: docker-check ## Attach to running SC Drill Desktop container
 		echo ''; \
 		/bin/bash"
 
-stop: docker-check ## Stop the SC Drill Desktop container
+stop: compose-check ## Stop the SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Stopping SC Drill Desktop container...$(NC)"
 	@if [ "$$(docker inspect -f '{{.State.Running}}' $(CONTAINER_NAME) 2>/dev/null)" = "true" ]; then \
-		docker stop $(CONTAINER_NAME); \
+		docker compose -f $(COMPOSE_FILE) down; \
 		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi
 
-clean: docker-check ## Clean up containers, volumes, and images
+clean: compose-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up SC Drill Desktop resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker rm -f $(CONTAINER_NAME); \
-	fi
+	@docker compose -f $(COMPOSE_FILE) down -v --rmi all 2>/dev/null || true
 	@if docker volume ls -q | grep -q "sc_humble_desktop_home_volume"; then \
 		docker volume rm sc_humble_desktop_home_volume; \
 	fi
-	@if docker images -q $(IMAGE_NAME) | head -1 | xargs -r docker rmi; then \
-		echo "$(GREEN)Cleanup complete!$(NC)"; \
-	fi
+	@echo "$(GREEN)Cleanup complete!$(NC)"
 
-status: docker-check ## Show status of SC Drill Desktop containers and volumes
+status: compose-check ## Show status of SC Drill Desktop containers and volumes
 	@echo "$(BLUE)[INFO] SC Drill Desktop status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Containers:$(NC)"
-	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
+	@docker compose -f $(COMPOSE_FILE) ps -a 2>/dev/null || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=sc_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
@@ -201,10 +158,10 @@ status: docker-check ## Show status of SC Drill Desktop containers and volumes
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
 
-logs: docker-check ## Show logs from the SC Drill Desktop container
+logs: compose-check ## Show logs from the SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Showing SC Drill Desktop container logs...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker logs -f $(CONTAINER_NAME); \
+		docker compose -f $(COMPOSE_FILE) logs -f sc-drill; \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi
