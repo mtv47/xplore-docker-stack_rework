@@ -23,7 +23,7 @@ Production-optimized Docker image definition:
 - **Optimized Build**: No dependency resolution during runtime
 
 ### `Makefile`
-Comprehensive production deployment interface (replaces all shell scripts):
+Comprehensive production deployment interface using Docker Compose (replaces all shell scripts):
 
 **Core Commands:**
 - `make build` - Build production-optimized Jetson image (with cache refresh)
@@ -43,13 +43,21 @@ Comprehensive production deployment interface (replaces all shell scripts):
 - `make clean` - Clean up containers, volumes, and images
 - `make logs` - Show container logs
 - `make docker-check` - Check if Docker is running
+- `make compose-check` - Check if Docker Compose is available
+
+### `compose.yaml`
+Docker Compose configuration with multiple service profiles:
+- **sc-drill**: Standard interactive development mode
+- **sc-drill-gpu**: GPU-accelerated development mode with NVIDIA runtime
+- **sc-drill-production**: Non-interactive production mode with automatic drill launch
 
 **Key Production Features:**
-- **Automatic Launch**: Directly executes `ros2 launch erc_drill drill.launch.xml`
+- **Docker Compose Integration**: Uses compose profiles for different deployment modes
+- **Automatic Launch**: Directly executes `ros2 launch erc_drill drill.launch.xml` in production profile
 - **Container Management**: Checks if container is running and reuses or creates new
-- **Non-Interactive Mode**: Runs with `-i` flag for daemon-like operation
-- **Smart Execution**: Attaches to existing container or starts new one
+- **Smart Execution**: Attaches to existing container or starts new compose service
 - **Photo Integration**: Mounts competition photo directory
+- **GPU Support**: Dedicated GPU service profile with NVIDIA runtime
 
 **Production Workflow:**
 1. Checks container status
@@ -70,22 +78,23 @@ make help
 
 ### Quick Command Reference
 ```bash
-# Build and run
-make build          # Build with fresh cache
+# Build and run (Docker Compose)
+make build          # Build with fresh cache using compose
 make build-quick    # Build using existing cache
-make run            # Run container (interactive mode)
-make run-gpu        # Run with GPU acceleration
-make run-drill      # Run with automatic drill launch (production)
+make run            # Run container (interactive mode, default profile)
+make run-gpu        # Run with GPU acceleration (gpu profile)
+make run-drill      # Run with automatic drill launch (production profile)
 
 # Development workflow
 make attach         # Attach to running container
-make stop           # Stop the container
-make status         # Show container/volume/image status
-make logs           # Show container logs
+make stop           # Stop compose services
+make status         # Show compose services, volumes, and images
+make logs           # Show container logs from compose
 
 # Maintenance
-make clean          # Clean up (interactive confirmation)
+make clean          # Clean up compose resources (interactive confirmation)
 make docker-check   # Verify Docker is running
+make compose-check  # Verify Docker Compose is available
 make x11-setup      # Setup X11 forwarding
 make gpu-check      # Check GPU availability
 ```
@@ -104,7 +113,7 @@ Requires=docker.service
 
 [Service]
 Type=simple
-WorkingDirectory=/path/to/ERC_SC_Drill_new/docker_humble_jetson
+WorkingDirectory=/path/to/ERC_SC_Drill_new_v2/docker_humble_jetson
 ExecStart=/usr/bin/make run-drill
 ExecStop=/usr/bin/make stop
 Restart=always
@@ -142,17 +151,53 @@ sudo systemctl status drillnode.service
 ### Quick Start for Competition
 ```bash
 # On Jetson device
-cd /path/to/ERC_SC_Drill_new/docker_humble_jetson
+cd /path/to/ERC_SC_Drill_new_v2/docker_humble_jetson
 
-# Build the production image
+# Build the production image using Docker Compose
 make build
 
-# Test the drill system
+# Test the drill system (uses production profile)
 make run-drill
 
 # For production deployment with systemd service
 sudo systemctl enable drillnode.service
 sudo systemctl start drillnode.service
+```
+
+## Docker Compose Architecture
+
+This version uses Docker Compose for container orchestration with multiple service profiles:
+
+### Service Profiles
+
+#### Default Profile (`sc-drill`)
+- **Interactive development mode**
+- Full terminal access with stdin/tty
+- Standard container runtime
+
+#### GPU Profile (`sc-drill-gpu`) 
+- **GPU-accelerated development mode**
+- NVIDIA runtime with full GPU access
+- All NVIDIA capabilities enabled
+
+#### Production Profile (`sc-drill-production`)
+- **Autonomous production mode**
+- Non-interactive execution
+- Automatic drill launch on startup
+- Optimized for systemd service integration
+
+### Direct Docker Compose Usage
+```bash
+# Alternative to make commands (if preferred)
+docker compose -f compose.yaml --profile default up -it sc-drill
+docker compose -f compose.yaml --profile gpu up -it sc-drill-gpu
+docker compose -f compose.yaml --profile production up sc-drill-production
+
+# Build specific service
+docker compose -f compose.yaml build sc-drill
+
+# View services
+docker compose -f compose.yaml ps
 ```
 
 ## Hardware Optimization
@@ -180,11 +225,13 @@ from evdev import InputDevice  # Hardware input handling
 
 ### Production Container Lifecycle
 ```bash
-# Check container status
-docker ps | grep sc_humble_jetson
+# Check container status (Docker Compose)
+docker compose -f compose.yaml ps
 
 # View container logs
-docker logs sc_humble_jetson
+make logs
+# or directly with compose
+docker compose -f compose.yaml logs sc-drill
 
 # Execute commands in running container
 docker exec -it sc_humble_jetson bash
@@ -259,7 +306,7 @@ The container is optimized for Jetson hardware:
 | **Interactivity** | Non-interactive | Full interactive |
 | **Dependencies** | Pre-installed | Development tools |
 | **GPU Support** | Jetson CUDA | Desktop NVIDIA |
-| **Container Management** | Production scripts | Development scripts |
+| **Container Management** | Docker Compose | Docker commands |
 | **Photo Integration** | Competition photos | Development data |
 
 ## Troubleshooting
