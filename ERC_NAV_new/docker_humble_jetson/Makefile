@@ -105,9 +105,9 @@ run: docker-check x11-setup gpu-check ## Run Navigation Jetson container with GP
 		-e DISPLAY=$$DISPLAY \
 		-e QT_X11_NO_MITSHM=1 \
 		-e XAUTHORITY=$(XAUTH) \
-		-e GAZEBO_RESOURCE_PATH=/usr/share/gazebo-11 \
-		-e GAZEBO_MODEL_PATH=/usr/share/gazebo-11/models \
-		-e GAZEBO_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gazebo-11/plugins \
+		--env GAZEBO_RESOURCE_PATH=/usr/share/gazebo-11 \
+		--env GAZEBO_MODEL_PATH=/usr/share/gazebo-11/models \
+		--env GAZEBO_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gazebo-11/plugins \
 		-e CYCLONEDDS_URI="file:///home/$(USERNAME)/cyclonedx.xml" \
 		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
 		-v $(XAUTH):$(XAUTH) \
@@ -149,7 +149,7 @@ attach: docker-check ## Attach to running Navigation Jetson container
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
 		export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-		source install/setup.bash 2>/dev/null || true; \
+		source install/setup.bash; \
 		echo '🚀 Welcome to Navigation Jetson container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
@@ -168,28 +168,18 @@ wheels-control: docker-check x11-setup ## Launch wheels control stack (creates n
 		docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
 			source src/docker_humble_jetson/attach.sh 2>/dev/null || true; \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash 2>/dev/null || true; \
-			echo '🎮 Launching wheels control stack...'; \
 			ros2 launch wheels_control manual_stack.launch.py pub_urdf:=True"; \
 	else \
 		echo "$(YELLOW)[INFO] Starting new container for wheels control$(NC)"; \
 		$(MAKE) x11-setup; \
-		docker run -it \
-			--name $(CONTAINER_NAME)_wheels \
+		docker run -i \
+			--name $(CONTAINER_NAME) \
 			--rm \
 			--privileged \
 			--net=host \
-			--runtime=nvidia \
-			--gpus all \
-			-e DISPLAY=$$DISPLAY \
+			-e DISPLAY=unix$$DISPLAY \
 			-e QT_X11_NO_MITSHM=1 \
 			-e XAUTHORITY=$(XAUTH) \
-			-e GAZEBO_RESOURCE_PATH=/usr/share/gazebo-11 \
-			-e GAZEBO_MODEL_PATH=/usr/share/gazebo-11/models \
-			-e GAZEBO_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gazebo-11/plugins \
-			-e CYCLONEDDS_URI="file:///home/$(USERNAME)/cyclonedx.xml" \
 			-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
 			-v $(XAUTH):$(XAUTH) \
 			-v /run/user/1000/at-spi:/run/user/1000/at-spi \
@@ -197,43 +187,28 @@ wheels-control: docker-check x11-setup ## Launch wheels control stack (creates n
 			-v /run/jtop.sock:/run/jtop.sock \
 			-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
 			-v nav_humble_jetson_home_volume:/home/$(USERNAME) \
-			-v $(PWD)/cyclonedx.xml:/home/$(USERNAME)/cyclonedx.xml:ro \
-			-v $(PHOTOS_DIR):/home/$(USERNAME)/dev_ws/photos_competition \
 			--add-host=os-122140001125.local:169.254.55.220 \
 			$(IMAGE_NAME) \
 			/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-				export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-				export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-				source install/setup.bash 2>/dev/null || true; \
-				echo '🎮 Launching wheels control stack...'; \
+				source src/docker_humble_jetson/attach.sh; \
 				ros2 launch wheels_control manual_stack.launch.py pub_urdf:=True"; \
 	fi
 
 stop: docker-check ## Stop the Navigation Jetson container
-	@echo "$(BLUE)[INFO] Stopping Navigation Jetson containers...$(NC)"
-	@containers_stopped=0; \
-	for container in $(CONTAINER_NAME) $(CONTAINER_NAME)_wheels; do \
-		if docker ps --format "table {{.Names}}" | grep -q "^$$container$$"; then \
-			docker stop $$container; \
-			containers_stopped=1; \
-		fi; \
-	done; \
-	if [ $$containers_stopped -eq 1 ]; then \
-		echo "$(GREEN)[SUCCESS] Containers stopped$(NC)"; \
+	@echo "$(BLUE)[INFO] Stopping Navigation Jetson container...$(NC)"
+	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker stop $(CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
 	else \
-		echo "$(YELLOW)[INFO] No containers were running$(NC)"; \
+		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi
 
 clean: docker-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up Navigation Jetson resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@containers_removed=0; \
-	for container in $(CONTAINER_NAME) $(CONTAINER_NAME)_wheels; do \
-		if docker ps -a --format "table {{.Names}}" | grep -q "^$$container$$"; then \
-			docker rm -f $$container; \
-			containers_removed=1; \
-		fi; \
-	done
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME); \
+	fi
 	@if docker volume ls -q | grep -q "nav_humble_jetson_home_volume"; then \
 		docker volume rm nav_humble_jetson_home_volume; \
 	fi
@@ -253,206 +228,10 @@ status: docker-check ## Show status of Navigation Jetson containers and volumes
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
 
-hardware-check: ## Check Jetson hardware and Navigation requirements
-	@echo "$(BLUE)[INFO] Checking Navigation Jetson hardware requirements...$(NC)"
-	@echo ""
-	@echo "$(GREEN)Jetson Platform:$(NC)"
-	@if [ -f /etc/nv_tegra_release ]; then \
-		cat /etc/nv_tegra_release; \
-	else \
-		echo "$(YELLOW)Not running on Jetson platform$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)GPU Information:$(NC)"
-	@if command -v nvidia-smi > /dev/null 2>&1; then \
-		nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader,nounits 2>/dev/null || echo "$(YELLOW)NVIDIA GPU not available$(NC)"; \
-	else \
-		echo "$(YELLOW)nvidia-smi not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Jetson Tools:$(NC)"
-	@echo "JTop Socket:"
-	@if [ -S /run/jtop.sock ]; then \
-		echo "  ✅ /run/jtop.sock"; \
-	else \
-		echo "  $(RED)❌ /run/jtop.sock missing$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Configuration Files:$(NC)"
-	@echo "CycloneDDS Config:"
-	@if [ -f $(PWD)/cyclonedx.xml ]; then \
-		echo "  ✅ $(PWD)/cyclonedx.xml"; \
-	else \
-		echo "  $(RED)❌ $(PWD)/cyclonedx.xml missing$(NC)"; \
-	fi
-	@echo "Photos Directory:"
-	@if [ -d $(PHOTOS_DIR) ]; then \
-		echo "  ✅ $(PHOTOS_DIR)"; \
-	else \
-		echo "  $(YELLOW)⚠️  $(PHOTOS_DIR) not found$(NC)"; \
-	fi
-
-dev-shell: docker-check x11-setup ## Run Navigation development shell without auto-setup
-	@echo "$(BLUE)[INFO] Starting Navigation Jetson development shell...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME)_dev \
-		--rm \
-		--privileged \
-		--net=host \
-		--runtime=nvidia \
-		--gpus all \
-		-e DISPLAY=$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-e GAZEBO_RESOURCE_PATH=/usr/share/gazebo-11 \
-		-e GAZEBO_MODEL_PATH=/usr/share/gazebo-11/models \
-		-e GAZEBO_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gazebo-11/plugins \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v /run/jtop.sock:/run/jtop.sock \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v nav_humble_jetson_home_volume:/home/$(USERNAME) \
-		-v $(PWD)/cyclonedx.xml:/home/$(USERNAME)/cyclonedx.xml:ro \
-		-v $(PHOTOS_DIR):/home/$(USERNAME)/dev_ws/photos_competition \
-		--add-host=os-122140001125.local:169.254.55.220 \
-		$(IMAGE_NAME) \
-		/bin/bash -c " \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			source install/setup.bash 2>/dev/null || true; \
-			echo '🔧 Navigation development shell ready!'; \
-			/bin/bash"
-
 logs: docker-check ## Show logs from the Navigation Jetson container
 	@echo "$(BLUE)[INFO] Showing Navigation Jetson container logs...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
 		docker logs -f $(CONTAINER_NAME); \
-	elif docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)_wheels$$"; then \
-		docker logs -f $(CONTAINER_NAME)_wheels; \
 	else \
-		echo "$(YELLOW)[INFO] No containers are running$(NC)"; \
+		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi
-
-# Navigation specific commands
-nav-test: ## Run Navigation stack tests (requires running container)
-	@echo "$(BLUE)[INFO] Running Navigation stack tests...$(NC)"
-	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(RED)[ERROR] Container $(CONTAINER_NAME) is not running$(NC)"; \
-		echo "Start it first with: make run"; \
-		exit 1; \
-	fi
-	docker exec $(CONTAINER_NAME) /bin/bash -c " \
-		cd /home/$(USERNAME)/dev_ws; \
-		source install/setup.bash 2>/dev/null || true; \
-		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-		echo 'Running Navigation stack tests...'; \
-		colcon test --packages-select nav_pkg || echo 'Tests completed with warnings'"
-
-launch-nav: ## Launch full Navigation stack in running container
-	@echo "$(BLUE)[INFO] Launching Navigation stack...$(NC)"
-	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(RED)[ERROR] Container $(CONTAINER_NAME) is not running$(NC)"; \
-		echo "Start it first with: make run"; \
-		exit 1; \
-	fi
-	docker exec $(CONTAINER_NAME) /bin/bash -c " \
-		cd /home/$(USERNAME)/dev_ws; \
-		source install/setup.bash 2>/dev/null || true; \
-		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-		ros2 launch nav_pkg navigation_stack.launch.py || echo 'Launch file may not exist yet'"
-
-wheels-status: ## Check wheels control system status
-	@echo "$(BLUE)[INFO] Checking wheels control system status...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)"; then \
-		docker exec $(CONTAINER_NAME) /bin/bash -c " \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			echo 'Active ROS2 nodes:'; \
-			ros2 node list 2>/dev/null | grep -E '(wheels|control)' || echo 'No wheels control nodes found'; \
-			echo ''; \
-			echo 'Available topics:'; \
-			ros2 topic list 2>/dev/null | grep -E '(cmd_vel|wheel|motor)' || echo 'No wheels control topics found'"; \
-	else \
-		echo "$(YELLOW)[INFO] No Navigation containers are running$(NC)"; \
-	fi
-
-performance-check: ## Check Navigation performance metrics (requires running container)
-	@echo "$(BLUE)[INFO] Checking Navigation performance metrics...$(NC)"
-	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)"; then \
-		echo "$(RED)[ERROR] No Navigation containers are running$(NC)"; \
-		echo "Start one first with: make run"; \
-		exit 1; \
-	fi
-	@container=$$(docker ps --format "table {{.Names}}" | grep "^$(CONTAINER_NAME)" | head -1); \
-	docker exec $$container /bin/bash -c " \
-		echo 'GPU Memory Usage:'; \
-		nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null || echo 'GPU info not available'; \
-		echo ''; \
-		echo 'System Memory:'; \
-		free -h; \
-		echo ''; \
-		echo 'CPU Usage:'; \
-		top -bn1 | grep 'Cpu(s)' || echo 'CPU info not available'; \
-		echo ''; \
-		echo 'JTop Status:'; \
-		if [ -S /run/jtop.sock ]; then echo 'JTop socket available'; else echo 'JTop socket not available'; fi"
-
-jetson-info: ## Show detailed Jetson platform information
-	@echo "$(BLUE)[INFO] Jetson Platform Information:$(NC)"
-	@echo ""
-	@echo "$(GREEN)Jetson Model:$(NC)"
-	@if [ -f /proc/device-tree/model ]; then \
-		cat /proc/device-tree/model; echo; \
-	else \
-		echo "$(YELLOW)Model information not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Jetson L4T Release:$(NC)"
-	@if [ -f /etc/nv_tegra_release ]; then \
-		cat /etc/nv_tegra_release; \
-	else \
-		echo "$(YELLOW)L4T information not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)CUDA Version:$(NC)"
-	@if command -v nvcc > /dev/null 2>&1; then \
-		nvcc --version | tail -1; \
-	else \
-		echo "$(YELLOW)CUDA compiler not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)JetPack Components:$(NC)"
-	@if command -v jetson_release > /dev/null 2>&1; then \
-		jetson_release -v; \
-	else \
-		echo "$(YELLOW)jetson_release not available$(NC)"; \
-	fi
-
-config-check: ## Validate configuration files and paths
-	@echo "$(BLUE)[INFO] Validating Navigation configuration...$(NC)"
-	@echo ""
-	@echo "$(GREEN)CycloneDDS Configuration:$(NC)"
-	@if [ -f $(PWD)/cyclonedx.xml ]; then \
-		echo "✅ Configuration file exists: $(PWD)/cyclonedx.xml"; \
-		echo "File size: $$(wc -c < $(PWD)/cyclonedx.xml) bytes"; \
-	else \
-		echo "$(RED)❌ CycloneDDS configuration missing: $(PWD)/cyclonedx.xml$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Volume Directories:$(NC)"
-	@echo "Parent directory: $(PARENT_DIR)"
-	@if [ -d "$(PARENT_DIR)" ]; then \
-		echo "✅ Source mount point exists"; \
-	else \
-		echo "$(RED)❌ Source directory missing$(NC)"; \
-	fi
-	@echo ""
-	@echo "Photos directory: $(PHOTOS_DIR)"
-	@if [ -d "$(PHOTOS_DIR)" ]; then \
-		echo "✅ Photos directory exists"; \
-	else \
-		echo "$(YELLOW)⚠️  Photos directory not found (optional)$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Network Configuration:$(NC)"
-	@echo "Host mapping: os-122140001125.local:169.254.55.220"

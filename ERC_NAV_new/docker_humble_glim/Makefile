@@ -50,11 +50,14 @@ x11-setup: ## Setup X11 forwarding for GUI applications (Jetson optimized)
 	@if [ ! -f "$(XAUTH)" ]; then \
 		touch "$(XAUTH)"; \
 	fi
-	@echo "$(BLUE)[INFO] Populating Xauthority with SSH xauth cookie...$(NC)"
-	@xauth nlist $$DISPLAY 2>/dev/null | sed -e 's/^..../ffff/' | xauth -f "$(XAUTH)" nmerge - || true
+	@xauth nlist $$DISPLAY | sed -e 's/^..../ffff/' | xauth -f "$(XAUTH)" nmerge -
 	@chmod a+r "$(XAUTH)"
+	@echo "$(GREEN)[INFO] Done.$(NC)"
+	@echo ""
 	@echo "$(BLUE)[INFO] Verifying file contents:$(NC)"
 	@file $(XAUTH) || echo "$(YELLOW)[WARNING] Could not verify X authority file$(NC)"
+	@echo "--> It should say \"X11 Xauthority data\"."
+	@echo ""
 	@echo "$(BLUE)[INFO] Permissions:$(NC)"
 	@ls -FAlh $(XAUTH)
 
@@ -128,7 +131,7 @@ run: docker-check x11-setup gpu-check ## Run GLIM Jetson container with full GPU
 			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 			export DISPLAY=unix\$$DISPLAY; \
 			export QT_X11_NO_MITSHM=1; \
-			source install/setup.bash 2>/dev/null || true; \
+			source install/setup.bash; \
 			echo '🚀 GLIM Jetson container ready!'; \
 			echo 'Optimized for:'; \
 			echo '  - NVIDIA Jetson platform'; \
@@ -151,10 +154,10 @@ attach: docker-check ## Attach to running GLIM Jetson container
 	@echo "🔗 Attaching to GLIM Jetson container..."
 	@echo ""
 	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
-		export RMW_IMPLEMENTATION=rmw_cyclonedx_cpp; \
+		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
-		source install/setup.bash 2>/dev/null || true; \
+		source install/setup.bash; \
 		echo '🚀 Welcome to GLIM Jetson container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
@@ -200,148 +203,10 @@ status: docker-check ## Show status of GLIM Jetson containers and volumes
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
 
-hardware-check: ## Check Jetson hardware and GLIM requirements
-	@echo "$(BLUE)[INFO] Checking GLIM Jetson hardware requirements...$(NC)"
-	@echo ""
-	@echo "$(GREEN)Jetson Platform:$(NC)"
-	@if [ -f /etc/nv_tegra_release ]; then \
-		cat /etc/nv_tegra_release; \
-	else \
-		echo "$(YELLOW)Not running on Jetson platform$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)GPU Information:$(NC)"
-	@if command -v nvidia-smi > /dev/null 2>&1; then \
-		nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader,nounits 2>/dev/null || echo "$(YELLOW)NVIDIA GPU not available$(NC)"; \
-	else \
-		echo "$(YELLOW)nvidia-smi not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Required Libraries:$(NC)"
-	@echo "CUDA:"
-	@if [ -d /usr/local/cuda ]; then \
-		echo "  ✅ /usr/local/cuda"; \
-	else \
-		echo "  $(RED)❌ /usr/local/cuda missing$(NC)"; \
-	fi
-	@echo "Tegra:"
-	@if [ -d /usr/lib/aarch64-linux-gnu/tegra ]; then \
-		echo "  ✅ /usr/lib/aarch64-linux-gnu/tegra"; \
-	else \
-		echo "  $(RED)❌ /usr/lib/aarch64-linux-gnu/tegra missing$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Device Permissions:$(NC)"
-	@groups $(USER) | grep -E "(video|gpio|i2c)" || echo "$(YELLOW)User not in hardware groups$(NC)"
-
-dev-shell: docker-check x11-setup ## Run GLIM development shell without auto-setup
-	@echo "$(BLUE)[INFO] Starting GLIM Jetson development shell...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME)_dev \
-		--rm \
-		--privileged \
-		--net=host \
-		--ipc=host \
-		--pid=host \
-		--runtime=nvidia \
-		--gpus all \
-		-e DISPLAY=$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro \
-		-v /usr/local/cuda:/usr/local/cuda:ro \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v nav_humble_jetson_home_volume:/home/$(USERNAME) \
-		-w /home/$(USERNAME)/dev_ws/ \
-		$(IMAGE_NAME) \
-		/bin/bash -c " \
-			export RMW_IMPLEMENTATION=rmw_cyclonedx_cpp; \
-			source install/setup.bash 2>/dev/null || true; \
-			echo '🔧 GLIM development shell ready!'; \
-			/bin/bash"
-
 logs: docker-check ## Show logs from the GLIM Jetson container
 	@echo "$(BLUE)[INFO] Showing GLIM Jetson container logs...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
 		docker logs -f $(CONTAINER_NAME); \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
-	fi
-
-# GLIM specific commands
-glim-test: ## Run GLIM SLAM tests (requires running container)
-	@echo "$(BLUE)[INFO] Running GLIM SLAM tests...$(NC)"
-	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(RED)[ERROR] Container $(CONTAINER_NAME) is not running$(NC)"; \
-		echo "Start it first with: make run"; \
-		exit 1; \
-	fi
-	docker exec $(CONTAINER_NAME) /bin/bash -c " \
-		cd /home/$(USERNAME)/dev_ws; \
-		source install/setup.bash 2>/dev/null || true; \
-		echo 'Running GLIM SLAM tests...'; \
-		ros2 test glim_ros || echo 'Tests completed with warnings'"
-
-launch-glim: ## Launch GLIM SLAM in running container
-	@echo "$(BLUE)[INFO] Launching GLIM SLAM...$(NC)"
-	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(RED)[ERROR] Container $(CONTAINER_NAME) is not running$(NC)"; \
-		echo "Start it first with: make run"; \
-		exit 1; \
-	fi
-	docker exec $(CONTAINER_NAME) /bin/bash -c " \
-		cd /home/$(USERNAME)/dev_ws; \
-		source install/setup.bash 2>/dev/null || true; \
-		ros2 launch glim_ros glim.launch.py || echo 'Launch file may not exist yet'"
-
-performance-check: ## Check GLIM performance metrics (requires running container)
-	@echo "$(BLUE)[INFO] Checking GLIM performance metrics...$(NC)"
-	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(RED)[ERROR] Container $(CONTAINER_NAME) is not running$(NC)"; \
-		echo "Start it first with: make run"; \
-		exit 1; \
-	fi
-	docker exec $(CONTAINER_NAME) /bin/bash -c " \
-		echo 'GPU Memory Usage:'; \
-		nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null || echo 'GPU info not available'; \
-		echo ''; \
-		echo 'System Memory:'; \
-		free -h; \
-		echo ''; \
-		echo 'CPU Usage:'; \
-		top -bn1 | grep 'Cpu(s)' || echo 'CPU info not available'"
-
-jetson-info: ## Show detailed Jetson platform information
-	@echo "$(BLUE)[INFO] Jetson Platform Information:$(NC)"
-	@echo ""
-	@echo "$(GREEN)Jetson Model:$(NC)"
-	@if [ -f /proc/device-tree/model ]; then \
-		cat /proc/device-tree/model; echo; \
-	else \
-		echo "$(YELLOW)Model information not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Jetson L4T Release:$(NC)"
-	@if [ -f /etc/nv_tegra_release ]; then \
-		cat /etc/nv_tegra_release; \
-	else \
-		echo "$(YELLOW)L4T information not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)CUDA Version:$(NC)"
-	@if command -v nvcc > /dev/null 2>&1; then \
-		nvcc --version | tail -1; \
-	else \
-		echo "$(YELLOW)CUDA compiler not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)JetPack Components:$(NC)"
-	@if command -v jetson_release > /dev/null 2>&1; then \
-		jetson_release -v; \
-	else \
-		echo "$(YELLOW)jetson_release not available$(NC)"; \
 	fi
