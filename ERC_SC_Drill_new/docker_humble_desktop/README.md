@@ -33,16 +33,14 @@ Comprehensive command interface (replaces shell scripts) with all development fu
 - `make stop` - Stop the container
 
 **Development Tools:**
-- `make dev-shell` - Development shell without auto-sourcing
-- `make drill-test` - Run drill subsystem tests
-- `make launch-drill` - Launch drill subsystem
-- `make hardware-check` - Check hardware interfaces and device availability
-- `make gpu-check` - Check GPU availability
+- `make gpu-check` - Check GPU availability for potential acceleration
+- `make x11-setup` - Setup X11 forwarding for GUI applications
 
 **Maintenance:**
 - `make status` - Show containers, volumes, and images status
 - `make clean` - Clean up containers, volumes, and images
 - `make logs` - Show container logs
+- `make docker-check` - Check if Docker is running
 
 **Key Features:**
 - **X11 Forwarding**: Complete GUI support for ROS tools (RViz, rqt, etc.)
@@ -64,6 +62,34 @@ Excludes unnecessary files from build context:
 - IDE configurations (`.vscode`, `.vs`)
 - Build artifacts and temporary files
 - Docker-related files to prevent recursion
+
+## Available Make Commands
+
+You can see all available commands by running:
+```bash
+make help
+```
+
+### Quick Command Reference
+```bash
+# Build and run
+make build          # Build with fresh cache
+make build-quick    # Build using existing cache
+make run            # Run container (standard mode)
+make run-gpu        # Run with GPU acceleration
+
+# Development workflow
+make attach         # Attach to running container
+make stop           # Stop the container
+make status         # Show container/volume/image status
+make logs           # Show container logs
+
+# Maintenance
+make clean          # Clean up (interactive confirmation)
+make docker-check   # Verify Docker is running
+make x11-setup      # Setup X11 forwarding
+make gpu-check      # Check GPU availability
+```
 
 ## Quick Start
 
@@ -95,15 +121,12 @@ The container starts with a pre-configured environment:
 cd /home/xplore/dev_ws
 colcon build
 
-# Environment is automatically sourced
+# Environment is automatically sourced when you attach
 # Launch the drill system
 ros2 launch erc_drill drill.launch.xml
 
-# Or use Makefile commands from host terminal:
-make launch-drill  # Launch drill subsystem
-make drill-test    # Run tests
-make attach        # Open additional terminal
-```
+# Or use direct ROS commands inside container:
+ros2 launch erc_drill drill.launch.xml
 ros2 run erc_drill SC_drill_fsm
 ros2 run erc_drill_interface interface_cs
 ```
@@ -151,10 +174,13 @@ The container is configured for drill motor controllers:
 
 ### Testing Hardware Connection
 ```bash
-# Check USB devices
+# Check USB devices for drill controllers
 lsusb | grep 03e7
 
-# Test motor communication
+# List all connected devices
+ls -la /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "No USB serial devices found"
+
+# Test motor communication (inside container)
 ros2 run erc_drill SC_motor_cmds
 ```
 
@@ -164,7 +190,7 @@ Key environment variables set in the container:
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
-| `RMW_IMPLEMENTATION` | `rmw_cyclonedx_cpp` | ROS 2 middleware |
+| `RMW_IMPLEMENTATION` | `rmw_cyclonedds_cpp` | ROS 2 middleware |
 | `DISPLAY` | `unix$DISPLAY` | X11 forwarding |
 | `QT_X11_NO_MITSHM` | `1` | Qt GUI compatibility |
 | `PYTHONPATH` | ROS package paths | Python module resolution |
@@ -190,11 +216,14 @@ sudo chown -R xplore:xplore /home/xplore/dev_ws
 
 ### Hardware Not Detected
 ```bash
-# Check USB rules
-cat /etc/udev/rules.d/80-movidius.rules
+# Check USB devices (looking for drill motor controllers)
+lsusb | grep 03e7
 
-# Restart udev service
-sudo /etc/init.d/udev restart
+# Verify device access inside container
+ls -la /dev/ttyUSB* /dev/ttyACM*
+
+# Check udev rules (if applicable)
+cat /etc/udev/rules.d/*drill* 2>/dev/null || echo "No drill-specific udev rules found"
 ```
 
 ### Build Failures

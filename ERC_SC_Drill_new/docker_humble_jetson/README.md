@@ -26,26 +26,23 @@ Production-optimized Docker image definition:
 Comprehensive production deployment interface (replaces all shell scripts):
 
 **Core Commands:**
-- `make build` - Build production-optimized Jetson image
+- `make build` - Build production-optimized Jetson image (with cache refresh)
+- `make build-quick` - Build using existing cache for faster development
 - `make run` - Run interactive container for development/testing
+- `make run-gpu` - Run with GPU acceleration support
 - `make run-drill` - Start drill stack automatically (production mode)
 - `make attach` - Attach to running container with environment setup
 - `make stop` - Stop the container
 
-**Production Management:**
-- `make launch-drill` - Launch drill stack in running container
-- `make stop-drill` - Stop the drill stack (alias for stop)
-- `make logs` - Show container logs
-
 **Development Tools:**
-- `make dev-shell` - Development shell without auto-launch
-- `make drill-test` - Run drill subsystem tests
-- `make drill-status` - Check drill hardware status
-- `make hardware-check` - Check Jetson hardware and GPU availability
+- `make gpu-check` - Check GPU availability for potential acceleration
+- `make x11-setup` - Setup X11 forwarding for GUI applications
 
 **Maintenance:**
 - `make status` - Show containers, volumes, and images status
 - `make clean` - Clean up containers, volumes, and images
+- `make logs` - Show container logs
+- `make docker-check` - Check if Docker is running
 
 **Key Production Features:**
 - **Automatic Launch**: Directly executes `ros2 launch erc_drill drill.launch.xml`
@@ -56,12 +53,42 @@ Comprehensive production deployment interface (replaces all shell scripts):
 
 **Production Workflow:**
 1. Checks container status
-2. If not running: Creates new container and launches drill system
-- **Container Lifecycle Management**: Intelligent container state management
-- **Automatic Launch**: Direct drill system startup with `ros2 launch erc_drill drill.launch.xml`
-- **Production Monitoring**: Container health checks and restart capabilities
-- **Volume Management**: Persistent home directory and competition photo access
-- **Environment Setup**: Automatic ROS 2 environment configuration
+2. If already running: Executes drill launch in existing container
+3. If not running: Creates new container and launches drill system automatically
+4. **Container Lifecycle Management**: Intelligent container state management
+5. **Automatic Launch**: Direct drill system startup with `ros2 launch erc_drill drill.launch.xml`
+6. **Production Monitoring**: Container health checks and restart capabilities
+7. **Volume Management**: Persistent home directory and competition photo access
+8. **Environment Setup**: Automatic ROS 2 environment configuration
+
+## Available Make Commands
+
+You can see all available commands by running:
+```bash
+make help
+```
+
+### Quick Command Reference
+```bash
+# Build and run
+make build          # Build with fresh cache
+make build-quick    # Build using existing cache
+make run            # Run container (interactive mode)
+make run-gpu        # Run with GPU acceleration
+make run-drill      # Run with automatic drill launch (production)
+
+# Development workflow
+make attach         # Attach to running container
+make stop           # Stop the container
+make status         # Show container/volume/image status
+make logs           # Show container logs
+
+# Maintenance
+make clean          # Clean up (interactive confirmation)
+make docker-check   # Verify Docker is running
+make x11-setup      # Setup X11 forwarding
+make gpu-check      # Check GPU availability
+```
 
 ## Production Deployment
 
@@ -76,12 +103,14 @@ After=docker.service
 Requires=docker.service
 
 [Service]
-Type=forking
+Type=simple
 WorkingDirectory=/path/to/ERC_SC_Drill_new/docker_humble_jetson
 ExecStart=/usr/bin/make run-drill
 ExecStop=/usr/bin/make stop
 Restart=always
 RestartSec=10
+User=xplore
+Group=xplore
 
 [Install]
 WantedBy=multi-user.target
@@ -104,10 +133,27 @@ sudo systemctl status drillnode.service
 ```
 
 ### Competition Deployment Workflow
-1. **Build Image**: `make build` (typically done in CI/CD)
-2. **Deploy to Jetson**: Transfer image to competition hardware
-3. **Configure Service**: Install and enable systemd service
-4. **Launch**: Service automatically starts drill system on boot
+1. **Build Image**: `make build` (typically done on development machine)
+2. **Test Locally**: `make run-drill` to verify functionality
+3. **Deploy to Jetson**: Transfer image to competition hardware
+4. **Configure Service**: Install and enable systemd service
+5. **Launch**: Service automatically starts drill system on boot
+
+### Quick Start for Competition
+```bash
+# On Jetson device
+cd /path/to/ERC_SC_Drill_new/docker_humble_jetson
+
+# Build the production image
+make build
+
+# Test the drill system
+make run-drill
+
+# For production deployment with systemd service
+sudo systemctl enable drillnode.service
+sudo systemctl start drillnode.service
+```
 
 ## Hardware Optimization
 
@@ -181,13 +227,10 @@ make stop
 # Run interactive session
 make run
 
-# Or use development shell
-make dev-shell
+# Or run with GPU support
+make run-gpu
 
-# Manual launch for debugging
-make launch-drill
-
-# Or manually inside container
+# Manual launch for debugging (inside container)
 ros2 launch erc_drill drill.launch.xml --ros-args --log-level debug
 ```
 
@@ -230,7 +273,8 @@ make run-drill
 
 # Check container health
 make status
-```
+
+# Inspect container details
 docker inspect sc_humble_jetson
 
 # View detailed logs
@@ -239,14 +283,17 @@ docker logs --details sc_humble_jetson
 
 ### Hardware Issues
 ```bash
-# Check USB devices
-docker exec sc_humble_jetson lsusb
+# Check USB devices for drill controllers
+docker exec sc_humble_jetson lsusb | grep 03e7
 
-# Test motor controllers
+# List all connected devices
+docker exec sc_humble_jetson ls -la /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "No USB serial devices found"
+
+# Test motor communication (inside container)
 docker exec sc_humble_jetson ros2 run erc_drill SC_motor_cmds
 
-# Check udev rules
-docker exec sc_humble_jetson cat /etc/udev/rules.d/80-movidius.rules
+# Check device access
+docker exec sc_humble_jetson ls -la /dev/
 ```
 
 ### Performance Issues
