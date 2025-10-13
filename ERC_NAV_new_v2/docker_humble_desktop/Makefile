@@ -1,7 +1,7 @@
 # ERC Navigation Desktop Docker Makefile
 # Provides convenient commands for managing the Navigation Desktop containers
 
-.PHONY: help build run run-gpu run-no-gpu attach stop clean docker-check x11-setup gpu-check
+.PHONY: help build run run-gpu run-no-gpu attach stop clean compose-check x11-setup gpu-check
 
 # Default target
 .DEFAULT_GOAL := help
@@ -40,7 +40,11 @@ help: ## Show this help message
 	@echo "  make stop        # Stop the container"
 	@echo ""
 
-docker-check: ## Check if Docker is running
+compose-check: ## Check if Docker Compose is available
+	@if ! docker compose version > /dev/null 2>&1; then \
+		echo "$(RED)[ERROR] Docker Compose is not available. Please install Docker Compose and try again.$(NC)"; \
+		exit 1; \
+	fi
 	@if ! docker info > /dev/null 2>&1; then \
 		echo "$(RED)[ERROR] Docker is not running. Please start Docker and try again.$(NC)"; \
 		exit 1; \
@@ -84,74 +88,25 @@ gpu-check: ## Check GPU availability and NVIDIA runtime
 		echo "$(YELLOW)⚠️  NVIDIA Docker runtime not available$(NC)"; \
 	fi
 
-build: docker-check ## Build the Navigation Desktop Docker image (with cache refresh)
+build: compose-check ## Build the Navigation Desktop Docker image (with cache refresh)
 	@echo "$(BLUE)[INFO] Building Navigation Desktop image with fresh cache...$(NC)"
-	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+	docker compose build --pull --no-cache --progress=plain nav-desktop
 
-build-quick: docker-check ## Build the Navigation Desktop Docker image (using cache)
+build-quick: compose-check ## Build the Navigation Desktop Docker image (using cache)
 	@echo "$(BLUE)[INFO] Building Navigation Desktop image (using cache)...$(NC)"
-	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+	docker compose build --progress=plain nav-desktop
 
 run: run-gpu ## Default run with GPU acceleration (alias for run-gpu)
 
-run-gpu: docker-check x11-setup gpu-check ## Run Navigation Desktop container with NVIDIA GPU acceleration
+run-gpu: compose-check x11-setup gpu-check ## Run Navigation Desktop container with NVIDIA GPU acceleration
 	@echo "$(BLUE)[INFO] Starting Navigation Desktop container with GPU acceleration...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--runtime=nvidia \
-		--gpus all \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-e NVIDIA_VISIBLE_DEVICES=all \
-		-e NVIDIA_DRIVER_CAPABILITIES=all \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v nav_humble_desktop_home_volume:/home/$(USERNAME) \
-		--add-host=$(LIDAR_HOST) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			echo '🚀 Navigation Desktop with GPU acceleration ready!'; \
-			echo 'GPU-accelerated features available:'; \
-			echo '  - SLAM processing'; \
-			echo '  - Computer vision'; \
-			echo '  - Real-time mapping'; \
-			echo '  - LiDAR processing'; \
-			echo ''; \
-			/bin/bash"
+	docker compose --profile gpu up -it nav-desktop-gpu
 
-run-no-gpu: docker-check x11-setup ## Run Navigation Desktop container without GPU (compatibility mode)
+run-no-gpu: compose-check x11-setup ## Run Navigation Desktop container without GPU (compatibility mode)
 	@echo "$(BLUE)[INFO] Starting Navigation Desktop container in compatibility mode (no GPU)...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v nav_humble_desktop_home_volume:/home/$(USERNAME) \
-		--add-host=$(LIDAR_HOST) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			echo '🚀 Navigation Desktop ready (compatibility mode)!'; \
-			echo 'Running without GPU acceleration'; \
-			echo 'Note: Some features may run slower'; \
-			echo ''; \
-			/bin/bash"
+	docker compose --profile default up -it nav-desktop
 
-attach: docker-check ## Attach to running Navigation Desktop container
+attach: compose-check ## Attach to running Navigation Desktop container
 	@echo "$(BLUE)[INFO] Attaching to Navigation Desktop container...$(NC)"
 	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
 		echo "$(RED)❌ Navigation Desktop container '$(CONTAINER_NAME)' is not running$(NC)"; \
@@ -164,7 +119,16 @@ attach: docker-check ## Attach to running Navigation Desktop container
 	fi
 	@echo "🔗 Attaching to Navigation Desktop container..."
 	@echo ""
-	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
+	docker compose exec nav-desktop /bin/bash -c " \
+		echo '🚀 Welcome to Navigation Desktop container!'; \
+		echo 'Environment configured with:'; \
+		echo '  - ROS 2 Humble'; \
+		echo '  - Navigation stack'; \
+		echo '  - SLAM capabilities'; \
+		echo '  - LiDAR integration'; \
+		echo '  - Real-time mapping'; \
+		echo ''; \
+		/bin/bash" || docker compose exec nav-desktop-gpu /bin/bash -c " \
 		echo '🚀 Welcome to Navigation Desktop container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
@@ -175,33 +139,26 @@ attach: docker-check ## Attach to running Navigation Desktop container
 		echo ''; \
 		/bin/bash"
 
-stop: docker-check ## Stop the Navigation Desktop container
+stop: compose-check ## Stop the Navigation Desktop container
 	@echo "$(BLUE)[INFO] Stopping Navigation Desktop container...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker stop $(CONTAINER_NAME); \
+		docker compose down; \
 		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi
 
-clean: docker-check ## Clean up containers, volumes, and images
+clean: compose-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up Navigation Desktop resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker rm -f $(CONTAINER_NAME); \
-	fi
-	@if docker volume ls -q | grep -q "nav_humble_desktop_home_volume"; then \
-		docker volume rm nav_humble_desktop_home_volume; \
-	fi
-	@if docker images -q $(IMAGE_NAME) | head -1 | xargs -r docker rmi; then \
-		echo "$(GREEN)Cleanup complete!$(NC)"; \
-	fi
+	docker compose down -v --rmi all
+	@echo "$(GREEN)Cleanup complete!$(NC)"
 
-status: docker-check ## Show status of Navigation Desktop containers and volumes
+status: compose-check ## Show status of Navigation Desktop containers and volumes
 	@echo "$(BLUE)[INFO] Navigation Desktop status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Containers:$(NC)"
-	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
+	@docker compose ps -a || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=nav_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
@@ -209,10 +166,10 @@ status: docker-check ## Show status of Navigation Desktop containers and volumes
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
 
-logs: docker-check ## Show logs from the Navigation Desktop container
+logs: compose-check ## Show logs from the Navigation Desktop container
 	@echo "$(BLUE)[INFO] Showing Navigation Desktop container logs...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker logs -f $(CONTAINER_NAME); \
+		docker compose logs -f; \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi

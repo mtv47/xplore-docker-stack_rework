@@ -1,0 +1,62 @@
+services:
+  nav-jetson:
+    build:
+      context: ..
+      dockerfile: docker_humble_jetson/Dockerfile
+      network: host
+    image: ghcr.io/epflxplore/nav:humble-jetson
+    container_name: nav_humble_jetson
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    runtime: nvidia
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - GAZEBO_RESOURCE_PATH=/usr/share/gazebo-11
+      - GAZEBO_MODEL_PATH=/usr/share/gazebo-11/models
+      - GAZEBO_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gazebo-11/plugins
+      - CYCLONEDDS_URI=file:///home/xplore/cyclonedds.xml
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - /run/jtop.sock:/run/jtop.sock
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - nav_humble_jetson_home_volume:/home/xplore
+      - ./cyclonedds.xml:/home/xplore/cyclonedds.xml:ro
+      - ${PHOTOS_DIR:-/home/xplore-nav/Documents/photos_competition}:/home/xplore/dev_ws/photos_competition
+    extra_hosts:
+      - "os-122140001125.local:169.254.55.220"
+    command: >
+      bash -c "sudo chown -R xplore:xplore /home/xplore;
+        echo '🚀 Navigation Jetson container ready!';
+        echo 'Features enabled:';
+        echo '  - NVIDIA GPU acceleration';
+        echo '  - Jetson platform optimization';
+        echo '  - CycloneDDS middleware';
+        echo '  - Gazebo simulation';
+        echo '  - Wheels control system';
+        echo '';
+        /bin/bash"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - default
+
+volumes:
+  nav_humble_jetson_home_volume:
+    driver: local

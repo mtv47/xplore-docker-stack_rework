@@ -1,0 +1,56 @@
+services:
+  glim-jetson:
+    build:
+      context: ..
+      dockerfile: docker_humble_glim/Dockerfile.glim
+    image: glim-humble-jetson
+    container_name: glim_humble_jetson
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    ipc: host
+    pid: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    runtime: nvidia
+    working_dir: /home/xplore/dev_ws/
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro
+      - /usr/local/cuda:/usr/local/cuda:ro
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - nav_humble_jetson_home_volume:/home/xplore
+    command: >
+      bash -c "sudo chown -R xplore:xplore /home/xplore;
+        source install/setup.bash;
+        echo '🚀 GLIM Jetson container ready!';
+        echo 'Optimized for:';
+        echo '  - NVIDIA Jetson platform';
+        echo '  - GPU-accelerated SLAM';
+        echo '  - Real-time LiDAR processing';
+        echo '  - GLIM visual-inertial mapping';
+        echo '';
+        /bin/bash"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - default
+
+volumes:
+  nav_humble_jetson_home_volume:
+    driver: local

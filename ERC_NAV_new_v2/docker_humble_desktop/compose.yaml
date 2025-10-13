@@ -1,0 +1,85 @@
+services:
+  nav-desktop:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+    image: ghcr.io/epflxplore/nav:humble-desktop
+    container_name: nav_humble_desktop
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - nav_humble_desktop_home_volume:/home/xplore
+    extra_hosts:
+      - "os-122140001125.local:169.254.55.220"
+    command: >
+      bash -c "sudo chown -R xplore:xplore /home/xplore;
+        echo '🚀 Navigation Desktop ready (compatibility mode)!';
+        echo 'Running without GPU acceleration';
+        echo 'Note: Some features may run slower';
+        echo '';
+        /bin/bash"
+    profiles:
+      - default
+
+  nav-desktop-gpu:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+    image: ghcr.io/epflxplore/nav:humble-desktop
+    container_name: nav_humble_desktop
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    runtime: nvidia
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - nav_humble_desktop_home_volume:/home/xplore
+    extra_hosts:
+      - "os-122140001125.local:169.254.55.220"
+    command: >
+      bash -c "sudo chown -R xplore:xplore /home/xplore;
+        echo '🚀 Navigation Desktop with GPU acceleration ready!';
+        echo 'GPU-accelerated features available:';
+        echo '  - SLAM processing';
+        echo '  - Computer vision';
+        echo '  - Real-time mapping';
+        echo '  - LiDAR processing';
+        echo '';
+        /bin/bash"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - gpu
+
+volumes:
+  nav_humble_desktop_home_volume:
+    driver: local
