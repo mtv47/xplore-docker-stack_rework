@@ -1,7 +1,7 @@
 # HD Desktop Docker Makefile
-# Provides convenient commands for managing the HD (Heavy Duty) Desktop containers
+# Provides convenient commands for managing the HD (Heavy Duty) Desktop containers using Docker Compose
 
-.PHONY: help build run run-no-gpu attach stop clean docker-check x11-setup
+.PHONY: help build run run-no-gpu attach stop clean docker-check x11-setup status logs gpu-check
 
 # Default target
 .DEFAULT_GOAL := help
@@ -20,7 +20,7 @@ CONTAINER_NAME = hd_humble_desktop
 USERNAME = xplore
 PARENT_DIR = $(shell dirname $(PWD))
 
-# Export environment variables
+# Export environment variables for Docker Compose
 export XAUTH
 export PARENT_DIR
 export DISPLAY
@@ -75,51 +75,15 @@ build-quick: docker-check ## Build the HD Desktop Docker image (using cache)
 
 run: docker-check x11-setup ## Run HD Desktop container with GPU support
 	@echo "$(BLUE)[INFO] Starting HD Desktop container with GPU support...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--runtime=nvidia \
-		--gpus all \
-		--privileged \
-		--net=host \
-		-e DISPLAY=$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v hd_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c " \
-			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			/bin/bash"
+	docker compose --profile gpu up -d hd-gpu
+	@echo "$(GREEN)[SUCCESS] HD Desktop started with GPU support$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 run-no-gpu: docker-check x11-setup ## Run HD Desktop container without GPU support
 	@echo "$(BLUE)[INFO] Starting HD Desktop container without GPU support...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v hd_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c " \
-			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			/bin/bash"
+	docker compose --profile no-gpu up -d hd
+	@echo "$(GREEN)[SUCCESS] HD Desktop started without GPU support$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 attach: docker-check ## Attach to running HD Desktop container
 	@echo "$(BLUE)[INFO] Attaching to HD Desktop container...$(NC)"
@@ -151,19 +115,13 @@ attach: docker-check ## Attach to running HD Desktop container
 
 stop: docker-check ## Stop the HD Desktop container
 	@echo "$(BLUE)[INFO] Stopping HD Desktop container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker stop $(CONTAINER_NAME); \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
-	fi
+	docker compose down
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
 clean: docker-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up HD Desktop resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker rm -f $(CONTAINER_NAME); \
-	fi
+	@docker compose down --volumes 2>/dev/null || true
 	@if docker volume ls -q | grep -q "hd_humble_desktop_home_volume"; then \
 		docker volume rm hd_humble_desktop_home_volume; \
 	fi
@@ -174,14 +132,22 @@ clean: docker-check ## Clean up containers, volumes, and images
 status: docker-check ## Show status of HD Desktop containers and volumes
 	@echo "$(BLUE)[INFO] HD Desktop status:$(NC)"
 	@echo ""
-	@echo "$(GREEN)Containers:$(NC)"
-	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
+	@echo "$(GREEN)Docker Compose Services:$(NC)"
+	@docker compose ps 2>/dev/null || echo "No compose services found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=hd_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
 	@echo ""
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
+
+logs: docker-check ## Show logs from the HD Desktop container
+	@echo "$(BLUE)[INFO] Showing HD Desktop container logs...$(NC)"
+	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker compose logs -f; \
+	else \
+		echo "$(YELLOW)[INFO] No containers are running$(NC)"; \
+	fi
 
 gpu-check: ## Check if NVIDIA GPU support is available
 	@echo "$(BLUE)[INFO] Checking GPU support...$(NC)"

@@ -1,0 +1,134 @@
+services:
+  hd-jetson:
+    build:
+      context: ..
+      dockerfile: docker_humble_jetson/Dockerfile
+    image: ghcr.io/epflxplore/hd:humble-jetson-test
+    container_name: hd_humble
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    pid: host
+    ipc: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    runtime: nvidia
+    group_add:
+      - video
+      - render
+      - input
+    devices:
+      - /dev/bus/usb
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+      - CYCLONEDDS_URI=file:///home/xplore/cyclonedds.xml
+    volumes:
+      - ${XAUTH}:${XAUTH}
+      - /dev:/dev
+      - /run/jtop.sock:/run/jtop.sock
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro
+      - /usr/local/cuda:/usr/local/cuda:ro
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - /home/xplore-hd/Documents/photos_competition:/home/xplore/dev_ws/photos_competition
+      - hd_humble_jetson_home_volume:/home/xplore
+      - ~/Documents/ERC_HD/docker_humble_jetson/cyclonedds.xml:/home/xplore/cyclonedds.xml:ro
+    command: /bin/bash
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - interactive
+
+  hd-jetson-stack:
+    build:
+      context: ..
+      dockerfile: docker_humble_jetson/Dockerfile
+    image: ghcr.io/epflxplore/hd:humble-jetson-test
+    container_name: hd_humble
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    runtime: nvidia
+    group_add:
+      - video
+      - render
+      - input
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - /home/xplore-hd/Documents/photos_competition:/home/xplore/dev_ws/photos_competition
+      - /run/jtop.sock:/run/jtop.sock
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - hd_humble_jetson_home_volume:/home/xplore
+      - ./cyclonedds.xml:/home/xplore/cyclonedds.xml:ro
+    command: >
+      /bin/bash -c "
+        sudo chown -R xplore:xplore /home/xplore;
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        export DISPLAY=unix$$DISPLAY;
+        export QT_X11_NO_MITSHM=1;
+        export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages;
+        source install/setup.bash;
+        ros2 launch hd_launch new.launch.py"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - stack
+
+  hd-jetson-motors:
+    build:
+      context: ..
+      dockerfile: docker_humble_jetson/Dockerfile
+    image: ghcr.io/epflxplore/hd:humble-jetson-test
+    container_name: hd_humble_motors
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    user: root
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - hd_humble_jetson_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "
+        sudo chown -R xplore:xplore /home/xplore;
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        export DISPLAY=unix$$DISPLAY;
+        export QT_X11_NO_MITSHM=1;
+        export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages;
+        source install/setup.bash;
+        ros2 run ethercat_device_configurator motor_control"
+    profiles:
+      - motors
+
+volumes:
+    hd_humble_jetson_home_volume:
+        external: true
+        name: hd_humble_jetson_home_volume

@@ -1,7 +1,7 @@
 # HD Jetson Docker Makefile
-# Provides convenient commands for managing the HD (Heavy Duty) Jetson containers
+# Provides convenient commands for managing the HD (Heavy Duty) Jetson containers using Docker Compose
 
-.PHONY: help build run run-hd-stack run-motors attach stop stop-hd-stack clean docker-check x11-setup jetson-check
+.PHONY: help build run run-hd-stack run-motors attach stop stop-hd-stack stop-motors clean docker-check x11-setup jetson-check status logs
 
 # Default target
 .DEFAULT_GOAL := help
@@ -22,7 +22,7 @@ USERNAME = xplore
 PARENT_DIR = $(shell dirname $(PWD))
 CYCLONEDDS_CONFIG = $(PWD)/cyclonedds.xml
 
-# Export environment variables
+# Export environment variables for Docker Compose
 export XAUTH
 export PARENT_DIR
 export DISPLAY
@@ -97,109 +97,21 @@ build-quick: docker-check ## Build the HD Jetson Docker image (using cache)
 
 run: docker-check x11-setup ## Run interactive HD Jetson container
 	@echo "$(BLUE)[INFO] Starting HD Jetson container...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--runtime=nvidia \
-		--gpus all \
-		--privileged \
-		--net=host \
-		--pid=host \
-		--group-add video \
-		--group-add render \
-		--group-add input \
-		--ipc=host \
-		--device /dev/bus/usb \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v $(XAUTH):$(XAUTH) \
-		-v /dev:/dev \
-		-v /run/jtop.sock:/run/jtop.sock \
-		-v /run/user/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro \
-		-v /usr/local/cuda:/usr/local/cuda:ro \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v /home/xplore-hd/Documents/photos_competition:/home/$(USERNAME)/dev_ws/photos_competition \
-		-v hd_humble_jetson_home_volume:/home/$(USERNAME) \
-		-v ~/Documents/ERC_HD/docker_humble_jetson/cyclonedds.xml:/home/xplore/cyclonedds.xml:ro
-		-e CYCLONEDDS_URI="file:///home/xplore/cyclonedds.xml" \
-		$(IMAGE_NAME) \
-		/bin/bash
+	docker compose --profile interactive up -d hd-jetson
+	@echo "$(GREEN)[SUCCESS] HD Jetson container started$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
-run-hd-stack: docker-check x11-setup ## Run HD launch stack (start or attach)
-	@echo "$(BLUE)[INFO] Starting/Attaching to HD Stack...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(GREEN)Container $(CONTAINER_NAME) is already running. Attaching to it...$(NC)"; \
-		docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
-			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export DISPLAY=unix\$$DISPLAY; \
-			export QT_X11_NO_MITSHM=1; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash; \
-			ros2 launch hd_launch new.launch.py"; \
-	else \
-		echo "$(GREEN)Container $(CONTAINER_NAME) is not running. Starting a new container...$(NC)"; \
-		docker run -i \
-			--name $(CONTAINER_NAME) \
-			--rm \
-			--privileged \
-			--net=host \
-			--runtime=nvidia \
-			--gpus all \
-			--group-add video \
-			--group-add render \
-			--group-add input \
-			-e DISPLAY=$$DISPLAY \
-			-e QT_X11_NO_MITSHM=1 \
-			-e XAUTHORITY=$(XAUTH) \
-			-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-			-v $(XAUTH):$(XAUTH) \
-			-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-			-v /dev:/dev \
-			-v /home/xplore-hd/Documents/photos_competition:/home/$(USERNAME)/dev_ws/photos_competition \
-			-v /run/jtop.sock:/run/jtop.sock \
-			-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-			-v hd_humble_jetson_home_volume:/home/$(USERNAME) \
-			-v $(CYCLONEDDS_CONFIG):/home/$(USERNAME)/cyclonedx.xml:ro \
-			$(IMAGE_NAME) \
-			/bin/bash -c " \
-				sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-				export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-				export DISPLAY=unix\$$DISPLAY; \
-				export QT_X11_NO_MITSHM=1; \
-				export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-				source install/setup.bash; \
-				ros2 launch hd_launch new.launch.py"; \
-	fi
+run-hd-stack: docker-check x11-setup ## Run HD launch stack
+	@echo "$(BLUE)[INFO] Starting HD Stack...$(NC)"
+	docker compose --profile stack up -d hd-jetson-stack
+	@echo "$(GREEN)[SUCCESS] HD Stack started$(NC)"
+	@echo "$(YELLOW)Use 'docker compose logs -f hd-jetson-stack' to view logs$(NC)"
 
 run-motors: docker-check x11-setup ## Run motor control container
 	@echo "$(BLUE)[INFO] Starting HD Motors container...$(NC)"
-	docker run -it \
-		--name $(MOTORS_CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		--user root \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v hd_humble_jetson_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c " \
-			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export DISPLAY=unix\$$DISPLAY; \
-			export QT_X11_NO_MITSHM=1; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash; \
-			ros2 run ethercat_device_configurator motor_control"
+	docker compose --profile motors up -d hd-jetson-motors
+	@echo "$(GREEN)[SUCCESS] HD Motors container started$(NC)"
+	@echo "$(YELLOW)Use 'docker compose logs -f hd-jetson-motors' to view logs$(NC)"
 
 attach: docker-check ## Attach to running HD Jetson container
 	@echo "$(BLUE)[INFO] Attaching to HD Jetson container...$(NC)"
@@ -232,33 +144,23 @@ attach: docker-check ## Attach to running HD Jetson container
 
 stop: docker-check ## Stop the main HD Jetson container
 	@echo "$(BLUE)[INFO] Stopping HD Jetson container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker stop $(CONTAINER_NAME); \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
-	fi
+	docker compose down
+	@echo "$(GREEN)[SUCCESS] Container(s) stopped$(NC)"
 
-stop-hd-stack: stop ## Alias for stop (stop HD stack container)
+stop-hd-stack: docker-check ## Stop HD stack container
+	@echo "$(BLUE)[INFO] Stopping HD Stack container...$(NC)"
+	docker compose stop hd-jetson-stack
+	@echo "$(GREEN)[SUCCESS] HD Stack container stopped$(NC)"
 
 stop-motors: docker-check ## Stop the motors container
 	@echo "$(BLUE)[INFO] Stopping HD Motors container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(MOTORS_CONTAINER_NAME)$$"; then \
-		docker stop $(MOTORS_CONTAINER_NAME); \
-		echo "$(GREEN)[SUCCESS] Motors container stopped$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] Motors container is not running$(NC)"; \
-	fi
+	docker compose stop hd-jetson-motors
+	@echo "$(GREEN)[SUCCESS] Motors container stopped$(NC)"
 
 clean: docker-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up HD Jetson resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker rm -f $(CONTAINER_NAME); \
-	fi
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(MOTORS_CONTAINER_NAME)$$"; then \
-		docker rm -f $(MOTORS_CONTAINER_NAME); \
-	fi
+	@docker compose down --volumes 2>/dev/null || true
 	@if docker volume ls -q | grep -q "hd_humble_jetson_home_volume"; then \
 		docker volume rm hd_humble_jetson_home_volume; \
 	fi
@@ -269,11 +171,17 @@ clean: docker-check ## Clean up containers, volumes, and images
 status: docker-check ## Show status of HD Jetson containers and volumes
 	@echo "$(BLUE)[INFO] HD Jetson status:$(NC)"
 	@echo ""
-	@echo "$(GREEN)Containers:$(NC)"
-	@docker ps -a --filter "name=hd_humble" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
+	@echo "$(GREEN)Docker Compose Services:$(NC)"
+	@docker compose ps 2>/dev/null || echo "No compose services found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=hd_humble_jetson" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
 	@echo ""
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
+
+logs: docker-check ## Show logs from HD Jetson containers
+	@echo "$(BLUE)[INFO] Showing HD Jetson container logs...$(NC)"
+	@echo "Available services: hd-jetson, hd-jetson-stack, hd-jetson-motors"
+	@echo "Use: docker compose logs -f [service-name]"
+	@docker compose logs --tail=50
