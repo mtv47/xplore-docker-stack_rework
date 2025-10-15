@@ -4,6 +4,8 @@
 
 The `docker_humble_desktop` folder contains the Docker configuration for the **desktop development environment** of the Avionics ROS2 system. This environment is designed for local development, testing, and debugging of the avionics subsystem on x86/AMD64 desktop machines before deployment to the rover's Jetson platform.
 
+**🚀 Now with Docker Compose Support!** This environment has been migrated to use Docker Compose for better container orchestration while maintaining all existing functionality.
+
 ## Purpose
 
 This Docker environment serves multiple purposes:
@@ -32,20 +34,31 @@ This Docker environment serves multiple purposes:
 
 ```
 docker_humble_desktop/
-├── Dockerfile          # Docker image definition
-├── Makefile           # Build and run commands (replaces shell scripts)
-└── README.md          # This documentation
+├── Dockerfile           # Docker image definition
+├── docker-compose.yml   # Docker Compose configuration
+├── Makefile            # Build and run commands with Docker Compose support
+└── README.md           # This documentation
 ```
+
+## Docker Compose Migration
+
+This environment now uses Docker Compose instead of direct `docker run` commands, providing:
+- **Better Configuration Management**: All container settings in a structured YAML file
+- **Environment Variable Support**: Automatic handling of display, user permissions, and paths
+- **Volume Management**: Persistent home directory with automatic creation
+- **Network Configuration**: Host networking for ROS2 communication
+- **Service Management**: Easy start/stop/attach operations
 
 ## Makefile Commands
 
-All functionality is now consolidated into a comprehensive Makefile. Use `make help` to see all available commands.
+All functionality is now consolidated into a comprehensive Makefile with Docker Compose integration. Use `make help` to see all available commands.
 
 ### Core Commands
 
 **Building and Running**:
 - `make build` - Build the Avionics ROS Desktop Docker image
-- `make run` - Run interactive container with CAN-FD and serial support
+- `make run` - Run container in detached mode with CAN-FD and serial support  
+- `make run-interactive` - Run container interactively (equivalent to old behavior)
 - `make attach` - Attach to running container with full ROS environment
 - `make stop` - Stop the container
 

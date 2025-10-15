@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  avionics-desktop:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+    image: ghcr.io/epflxplore/elec:humble-desktop
+    container_name: elec_humble_desktop
+    restart: "no"
+    privileged: true
+    network_mode: host
+    stdin_open: true
+    tty: true
+    user: "${UID}:${GID}"
+    group_add:
+      - dialout
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - elec_humble_desktop_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "sudo chown -R xplore:xplore /home/xplore && exec sg dialout 'su - xplore'"
+
+volumes:
+  elec_humble_desktop_home_volume:

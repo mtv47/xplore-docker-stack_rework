@@ -1,7 +1,7 @@
 # Avionics ROS Desktop Docker Makefile
 # Provides convenient commands for managing the Avionics ROS Desktop containers
 
-.PHONY: help build run attach stop clean docker-check x11-setup canfd-setup
+.PHONY: help build run run-interactive attach stop clean docker-check x11-setup canfd-setup logs
 
 # Default target
 .DEFAULT_GOAL := help
@@ -33,10 +33,11 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ { printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(BLUE)Examples:$(NC)"
-	@echo "  make build       # Build the Avionics ROS image"
-	@echo "  make run         # Run interactive container"
-	@echo "  make attach      # Attach to running container"
-	@echo "  make stop        # Stop the container"
+	@echo "  make build            # Build the Avionics ROS image"
+	@echo "  make run              # Run container (detached)"
+	@echo "  make run-interactive  # Run container (interactive)"
+	@echo "  make attach           # Attach to running container"
+	@echo "  make stop             # Stop the container"
 	@echo ""
 
 docker-check: ## Check if Docker is running
@@ -86,25 +87,14 @@ build-quick: docker-check ## Build the Avionics ROS Desktop Docker image (fast, 
 
 run: docker-check x11-setup canfd-setup ## Run Avionics ROS Desktop container
 	@echo "$(BLUE)[INFO] Starting Avionics ROS Desktop container...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--device=/dev/ttyUSB0 \
-		--group-add dialout \
-		--user $$(id -u):$$(id -g) \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v elec_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME) && exec sg dialout 'su - $(USERNAME)'"
+	UID=$$(id -u) GID=$$(id -g) XAUTH=$(XAUTH) PARENT_DIR=$(PARENT_DIR) DISPLAY=$$DISPLAY \
+	docker-compose up -d avionics-desktop
+	@echo "$(GREEN)[SUCCESS] Container started. Use 'make attach' to connect.$(NC)"
+
+run-interactive: docker-check x11-setup canfd-setup ## Run Avionics ROS Desktop container interactively
+	@echo "$(BLUE)[INFO] Starting Avionics ROS Desktop container interactively...$(NC)"
+	UID=$$(id -u) GID=$$(id -g) XAUTH=$(XAUTH) PARENT_DIR=$(PARENT_DIR) DISPLAY=$$DISPLAY \
+	docker-compose run --rm avionics-desktop
 
 attach: docker-check ## Attach to running Avionics ROS Desktop container
 	@echo "$(BLUE)[INFO] Attaching to Avionics ROS Desktop container...$(NC)"
@@ -118,7 +108,7 @@ attach: docker-check ## Attach to running Avionics ROS Desktop container
 	fi
 	@echo "🔗 Attaching to Avionics ROS Desktop container..."
 	@echo ""
-	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
+	docker-compose exec avionics-desktop /bin/bash -c " \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
@@ -137,7 +127,7 @@ attach: docker-check ## Attach to running Avionics ROS Desktop container
 stop: docker-check ## Stop the Avionics ROS Desktop container
 	@echo "$(BLUE)[INFO] Stopping Avionics ROS Desktop container...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker stop $(CONTAINER_NAME); \
+		docker-compose down; \
 		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
@@ -146,9 +136,7 @@ stop: docker-check ## Stop the Avionics ROS Desktop container
 clean: docker-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up Avionics ROS Desktop resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker rm -f $(CONTAINER_NAME); \
-	fi
+	docker-compose down --volumes
 	@if docker volume ls -q | grep -q "elec_humble_desktop_home_volume"; then \
 		docker volume rm elec_humble_desktop_home_volume; \
 	fi
@@ -167,3 +155,11 @@ status: docker-check ## Show status of Avionics ROS Desktop containers and volum
 	@echo ""
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
+
+logs: docker-check ## Show logs from the Avionics ROS Desktop container
+	@echo "$(BLUE)[INFO] Showing Avionics ROS Desktop container logs...$(NC)"
+	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker-compose logs -f avionics-desktop; \
+	else \
+		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
+	fi

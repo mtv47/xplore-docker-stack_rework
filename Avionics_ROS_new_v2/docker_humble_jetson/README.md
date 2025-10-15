@@ -4,6 +4,8 @@
 
 The `docker_humble_jetson` folder contains the Docker configuration for the **production deployment environment** of the Avionics ROS2 system on NVIDIA Jetson platforms. This environment is specifically optimized for ARM64 architecture and is designed to run on the rover's embedded Jetson computer with hardware acceleration and real-time performance requirements.
 
+**🚀 Now with Docker Compose Support!** This environment has been migrated to use Docker Compose for better container orchestration while maintaining all existing functionality.
+
 ## Purpose
 
 This Docker environment serves as the **production runtime** for the avionics subsystem:
@@ -34,20 +36,31 @@ This Docker environment serves as the **production runtime** for the avionics su
 
 ```
 docker_humble_jetson/
-├── Dockerfile              # Docker image definition for Jetson
-├── Makefile               # Build and deployment commands (replaces shell scripts)
-└── README.md              # This documentation
+├── Dockerfile               # Docker image definition for Jetson
+├── docker-compose.yml       # Docker Compose configuration
+├── Makefile                # Build and deployment commands with Docker Compose support
+└── README.md               # This documentation
 ```
+
+## Docker Compose Migration
+
+This environment now uses Docker Compose instead of direct `docker run` commands, providing:
+- **Better Configuration Management**: All container settings in a structured YAML file
+- **Environment Variable Support**: Automatic handling of display, user permissions, and paths
+- **Volume Management**: Persistent home directory with automatic creation
+- **Network Configuration**: Host networking for ROS2 communication
+- **Service Management**: Easy start/stop/attach operations
 
 ## Makefile Commands
 
-All functionality is now consolidated into a comprehensive Makefile optimized for Jetson deployment. Use `make help` to see all available commands.
+All functionality is now consolidated into a comprehensive Makefile with Docker Compose integration optimized for Jetson deployment. Use `make help` to see all available commands.
 
 ### Core Commands
 
 **Building and Running**:
 - `make build` - Build the Avionics ROS Jetson Docker image
-- `make run` - Run interactive container for development
+- `make run` - Run container in detached mode for development
+- `make run-interactive` - Run container interactively (equivalent to old behavior)
 - `make start-stack` - Start avionics stack automatically (production mode)
 - `make attach` - Attach to running container with full ROS environment
 - `make stop` - Stop the container
