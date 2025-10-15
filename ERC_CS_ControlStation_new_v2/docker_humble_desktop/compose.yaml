@@ -1,22 +1,73 @@
 services:
-    cs:
-        stdin_open: true
-        container_name: cs_humble_desktop
-        ports:
-            - 3000:3000
-            - 9090:9090
-        networks:
-            - cs_frontend_net
-        environment:
-            - XAUTHORITY=${XAUTH}
-        volumes:
-            - /tmp/.X11-unix:/tmp/.X11-unix:rw
-            - $XAUTH:$XAUTH
-            - /run/user/1000/at-spi:/run/user/1000/at-spi
-            - /dev:/dev
-            - ${PARENT_DIR}:/home/xplore/dev_ws/src
-            - cs_humble_desktop_home_volume:/home/xplore
-        image: ghcr.io/epflxplore/cs:humble-desktop
+  cs:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+    image: ghcr.io/epflxplore/cs:humble-desktop
+    container_name: cs_humble_desktop
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - cs_humble_desktop_home_volume:/home/xplore
+    working_dir: /home/xplore/dev_ws/src
+    command: >
+      /bin/bash -c "
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        echo '🚀 Control Station container ready!';
+        echo 'Web interfaces available at:';
+        echo '  - Main Interface: http://localhost:3000';
+        echo '  - ROSBridge: http://localhost:9090';
+        echo '';
+        /bin/bash"
+    profiles:
+      - default
+
+  cs-mac:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+    image: ghcr.io/epflxplore/cs:humble-desktop
+    container_name: cs_humble_desktop
+    stdin_open: true
+    tty: true
+    restart: "no"
+    ports:
+      - 3000:3000
+      - 9090:9090
+    networks:
+      - cs_frontend_net
+    environment:
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - cs_humble_desktop_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        echo '🚀 Control Station container ready!';
+        echo 'Web interfaces available at:';
+        echo '  - Main Interface: http://localhost:3000';
+        echo '  - ROSBridge: http://localhost:9090';
+        echo '';
+        /bin/bash"
+    profiles:
+      - mac
 
 volumes:
     cs_humble_desktop_home_volume:

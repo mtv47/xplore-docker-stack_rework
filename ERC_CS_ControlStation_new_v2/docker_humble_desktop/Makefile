@@ -1,7 +1,7 @@
 # ERC Control Station Desktop Docker Makefile
-# Provides convenient commands for managing the Control Station containers
+# Provides convenient commands for managing the Control Station containers using Docker Compose
 
-.PHONY: help build run run-cs run-mac attach stop clean docker-check x11-setup
+.PHONY: help build run run-mac attach stop clean docker-check x11-setup status logs launch-cs
 
 # Default target
 .DEFAULT_GOAL := help
@@ -67,66 +67,31 @@ x11-setup: ## Setup X11 forwarding for GUI applications
 	@echo "Permissions:"
 	@ls -FAlh $(XAUTH)
 
-build: docker-check ## Build the Control Station Docker image
-	@echo "$(BLUE)[INFO] Building Control Station image...$(NC)"
-	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+build: docker-check ## Build the Control Station Docker image (with cache refresh)
+	@echo "$(BLUE)[INFO] Building Control Station image with fresh cache...$(NC)"
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 build-quick: docker-check ## Build the Control Station Docker image (using cache)
 	@echo "$(BLUE)[INFO] Building Control Station image (using cache)...$(NC)"
-	docker build -t $(IMAGE_NAME) -f Dockerfile ..
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
-run: docker-check x11-setup ## Run Control Station container with X11 forwarding
-	@echo "$(BLUE)[INFO] Starting Control Station container...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v cs_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			echo '🚀 Control Station container ready!'; \
-			echo 'Web interfaces available at:'; \
-			echo '  - Main Interface: http://localhost:3000'; \
-			echo '  - ROSBridge: http://localhost:9090'; \
-			echo ''; \
-			/bin/bash"
+run: docker-check x11-setup ## Run Control Station container (Linux - privileged, host network)
+	@echo "$(BLUE)[INFO] Starting Control Station container (Linux mode)...$(NC)"
+	docker compose --profile default up -d cs
+	@echo "$(GREEN)[SUCCESS] Control Station started in Linux mode$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
-run-cs: docker-check x11-setup ## Run Control Station with launch script execution
-	@echo "$(BLUE)[INFO] Starting Control Station with launch script...$(NC)"
-	/usr/bin/docker run \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v cs_humble_desktop_home_volume:/home/$(USERNAME) \
-		-w /home/$(USERNAME)/dev_ws/src \
-		$(IMAGE_NAME) \
-		/bin/bash ./launch.sh
+run-cs: docker-check x11-setup run launch-cs
 
-run-mac: docker-check x11-setup ## Run Control Station using Docker Compose (optimized for macOS)
-	@echo "$(BLUE)[INFO] Starting Control Station with Docker Compose (macOS mode)...$(NC)"
+run-mac: docker-check x11-setup ## Run Control Station container (macOS - port mapping)
+	@echo "$(BLUE)[INFO] Starting Control Station container (macOS mode)...$(NC)"
 	@echo "$(YELLOW)[INFO] Web interfaces will be available at:$(NC)"
 	@echo "  - Main Interface: http://localhost:3000"
 	@echo "  - ROSBridge: http://localhost:9090"
 	@echo ""
-	docker compose up
+	docker compose --profile mac up -d cs-mac
+	@echo "$(GREEN)[SUCCESS] Control Station started in macOS mode$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 attach: docker-check ## Attach to running Control Station container
 	@echo "$(BLUE)[INFO] Attaching to Control Station container...$(NC)"
@@ -160,27 +125,12 @@ attach: docker-check ## Attach to running Control Station container
 
 stop: docker-check ## Stop the Control Station container
 	@echo "$(BLUE)[INFO] Stopping Control Station container...$(NC)"
-	@containers_stopped=0; \
-	if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker stop $(CONTAINER_NAME); \
-		containers_stopped=1; \
-	fi; \
-	if docker compose ps --services --filter "status=running" 2>/dev/null | grep -q "cs"; then \
-		docker compose down; \
-		containers_stopped=1; \
-	fi; \
-	if [ $$containers_stopped -eq 1 ]; then \
-		echo "$(GREEN)[SUCCESS] Container(s) stopped$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] No containers were running$(NC)"; \
-	fi
+	docker compose down
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
 clean: docker-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up Control Station resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker rm -f $(CONTAINER_NAME); \
-	fi
 	@docker compose down --volumes 2>/dev/null || true
 	@if docker volume ls -q | grep -q "cs_humble_desktop_home_volume"; then \
 		docker volume rm cs_humble_desktop_home_volume; \
@@ -189,11 +139,8 @@ clean: docker-check ## Clean up containers, volumes, and images
 		echo "$(GREEN)Cleanup complete!$(NC)"; \
 	fi
 
-status: docker-check ## Show status of Control Station containers and services
+status: docker-check ## Show status of Control Station containers and volumes
 	@echo "$(BLUE)[INFO] Control Station status:$(NC)"
-	@echo ""
-	@echo "$(GREEN)Direct Containers:$(NC)"
-	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No direct containers found"
 	@echo ""
 	@echo "$(GREEN)Docker Compose Services:$(NC)"
 	@docker compose ps 2>/dev/null || echo "No compose services found"
@@ -220,9 +167,7 @@ status: docker-check ## Show status of Control Station containers and services
 logs: docker-check ## Show logs from the Control Station container
 	@echo "$(BLUE)[INFO] Showing Control Station container logs...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker logs -f $(CONTAINER_NAME); \
-	elif docker compose ps --services 2>/dev/null | grep -q "cs"; then \
-		docker compose logs -f cs; \
+		docker compose logs -f; \
 	else \
 		echo "$(YELLOW)[INFO] No containers are running$(NC)"; \
 	fi
@@ -231,7 +176,7 @@ launch-cs: ## Launch Control Station stack in running container
 	@echo "$(BLUE)[INFO] Launching Control Station stack...$(NC)"
 	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
 		echo "$(RED)[ERROR] Container $(CONTAINER_NAME) is not running$(NC)"; \
-		echo "Start it first with: make run"; \
+		echo "Start it first with: make run or make run-mac"; \
 		exit 1; \
 	fi
 	docker exec $(CONTAINER_NAME) /bin/bash -c " \
