@@ -1,7 +1,7 @@
 # Rover Desktop Docker Makefile
 # Provides convenient commands for managing the Rover Desktop containers
 
-.PHONY: help build run run-mac run-cameras attach stop clean docker-check x11-setup
+.PHONY: help build build-quick run run-mac run-cameras attach stop clean docker-check x11-setup
 
 # Default target
 .DEFAULT_GOAL := help
@@ -32,7 +32,8 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ { printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(BLUE)Examples:$(NC)"
-	@echo "  make build       # Build the Rover image"
+	@echo "  make build       # Build the Rover image (full rebuild)"
+	@echo "  make build-quick # Build the Rover image (with cache)"
 	@echo "  make run         # Run interactive container"
 	@echo "  make run-mac     # Run for Mac with network"
 	@echo "  make run-cameras # Run camera service"
@@ -46,31 +47,32 @@ docker-check: ## Check if Docker is running
 	fi
 
 x11-setup: ## Setup X11 forwarding for GUI applications
-	@echo "$(BLUE)[INFO] Setting up X11 forwarding...$(NC)"
-	@if [ -f "$(XAUTH)" ] && ! xauth -f "$(XAUTH)" list > /dev/null 2>&1; then \
-		echo "$(YELLOW)[WARNING] Removing corrupted X authority file...$(NC)"; \
-		rm -f "$(XAUTH)"; \
-	fi
-	@if [ ! -f "$(XAUTH)" ]; then \
-		echo "$(BLUE)[INFO] Creating X authority file...$(NC)"; \
-		xauth_list=$$(xauth nlist :0 2>/dev/null | tail -n 1 | sed -e 's/^..../ffff/' || true); \
-		if [ -n "$$xauth_list" ]; then \
+	@echo "$(BLUE)[INFO] Preparing Xauthority data...$(NC)"
+	@xauth_list=$$(xauth nlist :0 | tail -n 1 | sed -e 's/^..../ffff/'); \
+	if [ ! -f "$(XAUTH)" ]; then \
+		if [ ! -z "$$xauth_list" ]; then \
 			echo "$$xauth_list" | xauth -f "$(XAUTH)" nmerge -; \
-			echo "$(GREEN)[SUCCESS] X authority data merged successfully$(NC)"; \
 		else \
 			touch "$(XAUTH)"; \
-			echo "$(YELLOW)[WARNING] Created empty X authority file (no X session found)$(NC)"; \
 		fi; \
 		chmod a+r "$(XAUTH)"; \
 	fi
+	@echo "$(GREEN)[SUCCESS] Done.$(NC)"
+	@echo ""
 	@echo "$(BLUE)[INFO] Verifying file contents:$(NC)"
-	@file $(XAUTH) || echo "$(YELLOW)[WARNING] Could not verify X authority file$(NC)"
+	@file $(XAUTH)
+	@echo "--> It should say \"X11 Xauthority data\"."
+	@echo ""
 	@echo "$(BLUE)[INFO] Permissions:$(NC)"
 	@ls -FAlh $(XAUTH)
 
-build: docker-check ## Build the Rover Desktop Docker image
-	@echo "$(BLUE)[INFO] Building Rover Desktop image...$(NC)"
+build: docker-check ## Build the Rover Desktop Docker image (full rebuild, no cache)
+	@echo "$(BLUE)[INFO] Building Rover Desktop image (full rebuild)...$(NC)"
 	docker build --no-cache --progress=plain --target build-rover -t $(IMAGE_NAME) -f Dockerfile ..
+
+build-quick: docker-check ## Build the Rover Desktop Docker image (with cache for faster builds)
+	@echo "$(BLUE)[INFO] Building Rover Desktop image (quick build with cache)...$(NC)"
+	docker build --progress=plain --target build-rover -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: docker-check x11-setup ## Run interactive Rover Desktop container
 	@echo "$(BLUE)[INFO] Starting Rover Desktop container...$(NC)"
@@ -151,7 +153,7 @@ attach: docker-check ## Attach to running Rover Desktop container
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
 		export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-		source install/setup.bash 2>/dev/null || true; \
+		source install/setup.bash; \
 		echo '🚀 Welcome to Rover Desktop container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
