@@ -56,33 +56,35 @@ canfd-setup: ## Setup CAN-FD interface (if script exists)
 	fi
 
 x11-setup: ## Setup X11 forwarding for GUI applications
-	@echo "$(BLUE)[INFO] Setting up X11 forwarding...$(NC)"
-	@if [ -f "$(XAUTH)" ] && ! xauth -f "$(XAUTH)" list > /dev/null 2>&1; then \
-		echo "$(YELLOW)[WARNING] Removing corrupted X authority file...$(NC)"; \
-		rm -f "$(XAUTH)"; \
-	fi
-	@if [ ! -f "$(XAUTH)" ]; then \
-		echo "$(BLUE)[INFO] Creating X authority file...$(NC)"; \
-		xauth_list=$$(xauth nlist :0 2>/dev/null | tail -n 1 | sed -e 's/^..../ffff/' || true); \
-		if [ -n "$$xauth_list" ]; then \
+	@echo "$(BLUE)[INFO] Preparing Xauthority data...$(NC)"
+	@xauth_list=$$(xauth nlist :0 | tail -n 1 | sed -e 's/^..../ffff/'); \
+	if [ ! -f "$(XAUTH)" ]; then \
+		if [ ! -z "$$xauth_list" ]; then \
 			echo "$$xauth_list" | xauth -f "$(XAUTH)" nmerge -; \
-			echo "$(GREEN)[SUCCESS] X authority data merged successfully$(NC)"; \
 		else \
 			touch "$(XAUTH)"; \
-			echo "$(YELLOW)[WARNING] Created empty X authority file (no X session found)$(NC)"; \
 		fi; \
 		chmod a+r "$(XAUTH)"; \
 	fi
+	@echo "$(GREEN)[SUCCESS] Done.$(NC)"
+	@echo ""
 	@echo "$(BLUE)[INFO] Verifying file contents:$(NC)"
-	@file $(XAUTH) || echo "$(YELLOW)[WARNING] Could not verify X authority file$(NC)"
+	@file $(XAUTH)
+	@echo "--> It should say \"X11 Xauthority data\"."
+	@echo ""
 	@echo "$(BLUE)[INFO] Permissions:$(NC)"
 	@ls -FAlh $(XAUTH)
+	@echo ""
 
-build: docker-check ## Build the Avionics ROS Desktop Docker image
+build: docker-check ## Build the Avionics ROS Desktop Docker image (verbose output)
 	@echo "$(BLUE)[INFO] Building Avionics ROS Desktop image...$(NC)"
 	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
-run: docker-check canfd-setup x11-setup ## Run Avionics ROS Desktop container
+build-quick: docker-check ## Build the Avionics ROS Desktop Docker image (fast, minimal output)
+	@echo "$(BLUE)[INFO] Quick building Avionics ROS Desktop image...$(NC)"
+	docker build -t $(IMAGE_NAME) -f Dockerfile ..
+
+run: docker-check x11-setup canfd-setup ## Run Avionics ROS Desktop container
 	@echo "$(BLUE)[INFO] Starting Avionics ROS Desktop container...$(NC)"
 	docker run -it \
 		--name $(CONTAINER_NAME) \
@@ -121,7 +123,7 @@ attach: docker-check ## Attach to running Avionics ROS Desktop container
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
 		export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-		source install/setup.bash 2>/dev/null || true; \
+		source install/setup.bash; \
 		echo '🚀 Welcome to Avionics ROS Desktop container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
@@ -165,49 +167,3 @@ status: docker-check ## Show status of Avionics ROS Desktop containers and volum
 	@echo ""
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
-
-hardware-check: ## Check CAN and serial hardware availability
-	@echo "$(BLUE)[INFO] Checking hardware interfaces...$(NC)"
-	@echo ""
-	@echo "$(GREEN)USB Serial Devices:$(NC)"
-	@if ls /dev/ttyUSB* > /dev/null 2>&1; then \
-		ls -la /dev/ttyUSB*; \
-	else \
-		echo "$(YELLOW)No USB serial devices found$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)CAN Interfaces:$(NC)"
-	@if command -v ip > /dev/null 2>&1; then \
-		ip link show type can 2>/dev/null || echo "$(YELLOW)No CAN interfaces found$(NC)"; \
-	else \
-		echo "$(YELLOW)ip command not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)User Groups:$(NC)"
-	@groups $(USER) | grep -E "(dialout|plugdev)" || echo "$(YELLOW)User not in dialout/plugdev groups$(NC)"
-
-dev-shell: docker-check canfd-setup x11-setup ## Run development shell without user switching
-	@echo "$(BLUE)[INFO] Starting Avionics ROS development shell...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME)_dev \
-		--rm \
-		--privileged \
-		--device=/dev/ttyUSB0 \
-		--group-add dialout \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v elec_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c " \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash 2>/dev/null || true; \
-			echo '🔧 Development shell ready!'; \
-			/bin/bash"
