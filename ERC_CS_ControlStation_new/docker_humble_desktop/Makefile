@@ -1,7 +1,7 @@
 # ERC Control Station Desktop Docker Makefile
 # Provides convenient commands for managing the Control Station containers
 
-.PHONY: help build run run-cs run-mac attach stop clean docker-check x11-setup compose-up compose-down
+.PHONY: help build run run-cs run-mac attach stop clean docker-check x11-setup
 
 # Default target
 .DEFAULT_GOAL := help
@@ -48,8 +48,8 @@ docker-check: ## Check if Docker is running
 	fi
 
 x11-setup: ## Setup X11 forwarding for GUI applications
-	@echo "$(BLUE)[INFO] Setting up X11 forwarding for Control Station...$(NC)"
-	@xauth_list=$$(xauth nlist :0 2>/dev/null | tail -n 1 | sed -e 's/^..../ffff/'); \
+	@echo "Preparing Xauthority data..."
+	@xauth_list=$$(xauth nlist :0 | tail -n 1 | sed -e 's/^..../ffff/'); \
 	if [ ! -f "$(XAUTH)" ]; then \
 		if [ ! -z "$$xauth_list" ]; then \
 			echo $$xauth_list | xauth -f "$(XAUTH)" nmerge -; \
@@ -58,9 +58,13 @@ x11-setup: ## Setup X11 forwarding for GUI applications
 		fi; \
 		chmod a+r "$(XAUTH)"; \
 	fi
-	@echo "$(BLUE)[INFO] Verifying file contents:$(NC)"
-	@file $(XAUTH) || echo "$(YELLOW)[WARNING] Could not verify X authority file$(NC)"
-	@echo "$(BLUE)[INFO] Permissions:$(NC)"
+	@echo "Done."
+	@echo ""
+	@echo "Verifying file contents:"
+	@file $(XAUTH)
+	@echo "--> It should say \"X11 Xauthority data\"."
+	@echo ""
+	@echo "Permissions:"
 	@ls -FAlh $(XAUTH)
 
 build: docker-check ## Build the Control Station Docker image
@@ -143,7 +147,7 @@ attach: docker-check ## Attach to running Control Station container
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
 		export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-		source install/setup.bash 2>/dev/null || true; \
+		source install/setup.bash; \
 		echo '🚀 Welcome to Control Station container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
@@ -153,19 +157,6 @@ attach: docker-check ## Attach to running Control Station container
 		echo '  - Control Station stack'; \
 		echo ''; \
 		/bin/bash"
-
-compose-up: docker-check x11-setup ## Start Control Station using Docker Compose
-	@echo "$(BLUE)[INFO] Starting Control Station with Docker Compose...$(NC)"
-	docker compose up -d
-	@echo "$(GREEN)[SUCCESS] Control Station started in background$(NC)"
-	@echo "Web interfaces available at:"
-	@echo "  - Main Interface: http://localhost:3000"
-	@echo "  - ROSBridge: http://localhost:9090"
-
-compose-down: docker-check ## Stop Control Station Docker Compose services
-	@echo "$(BLUE)[INFO] Stopping Control Station Docker Compose services...$(NC)"
-	docker compose down
-	@echo "$(GREEN)[SUCCESS] Services stopped$(NC)"
 
 stop: docker-check ## Stop the Control Station container
 	@echo "$(BLUE)[INFO] Stopping Control Station container...$(NC)"
@@ -236,21 +227,6 @@ logs: docker-check ## Show logs from the Control Station container
 		echo "$(YELLOW)[INFO] No containers are running$(NC)"; \
 	fi
 
-# Control Station specific commands
-cs-test: ## Run Control Station tests (requires running container)
-	@echo "$(BLUE)[INFO] Running Control Station tests...$(NC)"
-	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(RED)[ERROR] Container $(CONTAINER_NAME) is not running$(NC)"; \
-		echo "Start it first with: make run"; \
-		exit 1; \
-	fi
-	docker exec $(CONTAINER_NAME) /bin/bash -c " \
-		cd /home/$(USERNAME)/dev_ws; \
-		source install/setup.bash 2>/dev/null || true; \
-		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-		echo 'Running Control Station tests...'; \
-		colcon test --packages-select cs_pkg || echo 'Tests completed with warnings'"
-
 launch-cs: ## Launch Control Station stack in running container
 	@echo "$(BLUE)[INFO] Launching Control Station stack...$(NC)"
 	@if ! docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
@@ -264,127 +240,3 @@ launch-cs: ## Launch Control Station stack in running container
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		echo 'Launching Control Station...'; \
 		/bin/bash ./launch.sh || echo 'Launch script not found or failed'"
-
-web-status: ## Check web interface status and accessibility
-	@echo "$(BLUE)[INFO] Checking Control Station web interfaces...$(NC)"
-	@echo ""
-	@echo "$(GREEN)Port Status:$(NC)"
-	@if nc -z localhost 3000 2>/dev/null; then \
-		echo "  ✅ Main Interface (port 3000): http://localhost:3000 - ACTIVE"; \
-	else \
-		echo "  ❌ Main Interface (port 3000): http://localhost:3000 - INACTIVE"; \
-	fi
-	@if nc -z localhost 9090 2>/dev/null; then \
-		echo "  ✅ ROSBridge (port 9090): http://localhost:9090 - ACTIVE"; \
-	else \
-		echo "  ❌ ROSBridge (port 9090): http://localhost:9090 - INACTIVE"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Network Interfaces:$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker exec $(CONTAINER_NAME) /bin/bash -c " \
-			echo 'Container network status:'; \
-			ip addr show | grep -E '(inet|UP|DOWN)' | grep -v 127.0.0.1 || echo 'Network info not available'"; \
-	else \
-		echo "$(YELLOW)Container not running$(NC)"; \
-	fi
-
-dev-shell: docker-check x11-setup ## Run Control Station development shell without auto-setup
-	@echo "$(BLUE)[INFO] Starting Control Station development shell...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME)_dev \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v cs_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c " \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			source install/setup.bash 2>/dev/null || true; \
-			echo '🔧 Control Station development shell ready!'; \
-			/bin/bash"
-
-config-check: ## Validate configuration files and Docker setup
-	@echo "$(BLUE)[INFO] Validating Control Station configuration...$(NC)"
-	@echo ""
-	@echo "$(GREEN)Docker Compose Configuration:$(NC)"
-	@if [ -f $(PWD)/compose.yaml ]; then \
-		echo "✅ compose.yaml exists"; \
-		echo "Validating compose file..."; \
-		docker compose config >/dev/null 2>&1 && echo "✅ compose.yaml is valid" || echo "$(RED)❌ compose.yaml has errors$(NC)"; \
-	else \
-		echo "$(RED)❌ compose.yaml missing$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)CycloneDDS Configuration:$(NC)"
-	@if [ -f $(PWD)/cyclonedds.xml ]; then \
-		echo "✅ cyclonedds.xml exists"; \
-		echo "File size: $$(wc -c < $(PWD)/cyclonedds.xml) bytes"; \
-	else \
-		echo "$(YELLOW)⚠️  cyclonedds.xml not found (optional)$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Volume Directories:$(NC)"
-	@echo "Parent directory: $(PARENT_DIR)"
-	@if [ -d "$(PARENT_DIR)" ]; then \
-		echo "✅ Source mount point exists"; \
-	else \
-		echo "$(RED)❌ Source directory missing$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)X11 Setup:$(NC)"
-	@if [ -f "$(XAUTH)" ]; then \
-		echo "✅ X11 authority file exists: $(XAUTH)"; \
-	else \
-		echo "$(YELLOW)⚠️  X11 authority file not found (will be created)$(NC)"; \
-	fi
-
-compose-logs: ## Show Docker Compose logs
-	@echo "$(BLUE)[INFO] Showing Docker Compose logs...$(NC)"
-	docker compose logs -f
-
-compose-shell: ## Access shell in Docker Compose service
-	@echo "$(BLUE)[INFO] Accessing shell in Docker Compose service...$(NC)"
-	@if ! docker compose ps --services --filter "status=running" 2>/dev/null | grep -q "cs"; then \
-		echo "$(RED)[ERROR] Docker Compose service 'cs' is not running$(NC)"; \
-		echo "Start it first with: make compose-up"; \
-		exit 1; \
-	fi
-	docker compose exec cs /bin/bash -c " \
-		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-		export DISPLAY=unix\$$DISPLAY; \
-		export QT_X11_NO_MITSHM=1; \
-		export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-		source install/setup.bash 2>/dev/null || true; \
-		echo '🚀 Welcome to Control Station Compose shell!'; \
-		/bin/bash"
-
-restart: ## Restart Control Station services (both direct and compose)
-	@echo "$(BLUE)[INFO] Restarting Control Station services...$(NC)"
-	@$(MAKE) stop
-	@sleep 2
-	@echo "$(BLUE)[INFO] Starting services again...$(NC)"
-	@$(MAKE) run
-
-port-forward: ## Setup port forwarding for remote access
-	@echo "$(BLUE)[INFO] Control Station port forwarding information:$(NC)"
-	@echo ""
-	@echo "$(GREEN)Local Access:$(NC)"
-	@echo "  - Main Interface: http://localhost:3000"
-	@echo "  - ROSBridge: http://localhost:9090"
-	@echo ""
-	@echo "$(GREEN)Remote Access Setup:$(NC)"
-	@echo "  For SSH tunneling from remote machine:"
-	@echo "  ssh -L 3000:localhost:3000 -L 9090:localhost:9090 user@this-machine"
-	@echo ""
-	@echo "  Then access from remote browser:"
-	@echo "  - Main Interface: http://localhost:3000"
-	@echo "  - ROSBridge: http://localhost:9090"
