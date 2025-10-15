@@ -71,24 +71,28 @@ jetson-check: ## Check Jetson-specific requirements
 	fi
 
 x11-setup: ## Setup X11 forwarding for GUI applications
-	@echo "$(BLUE)[INFO] Setting up X11 forwarding...$(NC)"
+	@echo "$(BLUE)[INFO] Preparing Xauthority data...$(NC)"
 	@if [ ! -f "$(XAUTH)" ]; then \
 		touch "$(XAUTH)"; \
 	fi
-	@if [ -n "$$DISPLAY" ]; then \
-		xauth nlist "$$DISPLAY" 2>/dev/null | sed -e 's/^..../ffff/' | xauth -f "$(XAUTH)" nmerge - 2>/dev/null || true; \
-		chmod a+r "$(XAUTH)"; \
-		echo "$(GREEN)[SUCCESS] X authority data configured$(NC)"; \
-	else \
-		echo "$(YELLOW)[WARNING] DISPLAY not set$(NC)"; \
-	fi
-	@echo "$(BLUE)[INFO] Verifying file contents:$(NC)"
-	@file $(XAUTH) || echo "$(YELLOW)[WARNING] Could not verify X authority file$(NC)"
-	@echo "$(BLUE)[INFO] Permissions:$(NC)"
+	@xauth nlist $$DISPLAY | sed -e 's/^..../ffff/' | xauth -f "$(XAUTH)" nmerge -
+	@chmod a+r "$(XAUTH)"
+	@echo "$(GREEN)Done.$(NC)"
+	@echo ""
+	@echo "$(BLUE)Verifying file contents:$(NC)"
+	@file $(XAUTH)
+	@echo "$(YELLOW)--> It should say \"X11 Xauthority data\".$(NC)"
+	@echo ""
+	@echo "$(BLUE)Permissions:$(NC)"
 	@ls -FAlh $(XAUTH)
+	@echo ""
 
-build: docker-check ## Build the HD Jetson Docker image
-	@echo "$(BLUE)[INFO] Building HD Jetson image...$(NC)"
+build: docker-check ## Build the HD Jetson Docker image (with cache refresh)
+	@echo "$(BLUE)[INFO] Building HD Jetson image with fresh cache...$(NC)"
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+
+build-quick: docker-check ## Build the HD Jetson Docker image (using cache)
+	@echo "$(BLUE)[INFO] Building HD Jetson image (using cache)...$(NC)"
 	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: docker-check x11-setup ## Run interactive HD Jetson container
@@ -109,17 +113,17 @@ run: docker-check x11-setup ## Run interactive HD Jetson container
 		-e DISPLAY=unix$$DISPLAY \
 		-e QT_X11_NO_MITSHM=1 \
 		-e XAUTHORITY=$(XAUTH) \
-		-e CYCLONEDDS_URI="file:///home/$(USERNAME)/cyclonedds.xml" \
 		-v $(XAUTH):$(XAUTH) \
 		-v /dev:/dev \
 		-v /run/jtop.sock:/run/jtop.sock \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
+		-v /run/user/user/1000/at-spi:/run/user/1000/at-spi \
 		-v /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro \
 		-v /usr/local/cuda:/usr/local/cuda:ro \
 		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
 		-v /home/xplore-hd/Documents/photos_competition:/home/$(USERNAME)/dev_ws/photos_competition \
 		-v hd_humble_jetson_home_volume:/home/$(USERNAME) \
-		-v $(CYCLONEDDS_CONFIG):/home/$(USERNAME)/cyclonedx.xml:ro \
+		-v ~/Documents/ERC_HD/docker_humble_jetson/cyclonedds.xml:/home/xplore/cyclonedds.xml:ro
+		-e CYCLONEDDS_URI="file:///home/xplore/cyclonedds.xml" \
 		$(IMAGE_NAME) \
 		/bin/bash
 
@@ -150,7 +154,6 @@ run-hd-stack: docker-check x11-setup ## Run HD launch stack (start or attach)
 			-e DISPLAY=$$DISPLAY \
 			-e QT_X11_NO_MITSHM=1 \
 			-e XAUTHORITY=$(XAUTH) \
-			-e CYCLONEDDS_URI="file:///home/$(USERNAME)/cyclonedx.xml" \
 			-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
 			-v $(XAUTH):$(XAUTH) \
 			-v /run/user/1000/at-spi:/run/user/1000/at-spi \
@@ -216,7 +219,7 @@ attach: docker-check ## Attach to running HD Jetson container
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
 		export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-		source install/setup.bash 2>/dev/null || true; \
+		source install/setup.bash; \
 		echo '🚀 Welcome to HD Jetson container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \

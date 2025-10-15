@@ -45,27 +45,33 @@ docker-check: ## Check if Docker is running
 	fi
 
 x11-setup: ## Setup X11 forwarding for GUI applications
-	@echo "$(BLUE)[INFO] Setting up X11 forwarding...$(NC)"
-	@if [ -f "$(XAUTH)" ] && ! xauth -f "$(XAUTH)" list > /dev/null 2>&1; then \
-		echo "$(YELLOW)[WARNING] Removing corrupted X authority file...$(NC)"; \
-		rm -f "$(XAUTH)"; \
-	fi
-	@if [ ! -f "$(XAUTH)" ]; then \
-		echo "$(BLUE)[INFO] Creating X authority file...$(NC)"; \
-		xauth_list=$$(xauth nlist :0 2>/dev/null | tail -n 1 | sed -e 's/^..../ffff/' || true); \
-		if [ -n "$$xauth_list" ]; then \
+	@echo "$(BLUE)[INFO] Preparing Xauthority data...$(NC)"
+	@xauth_list=$$(xauth nlist :0 | tail -n 1 | sed -e 's/^..../ffff/'); \
+	if [ ! -f "$(XAUTH)" ]; then \
+		if [ ! -z "$$xauth_list" ]; then \
 			echo "$$xauth_list" | xauth -f "$(XAUTH)" nmerge -; \
-			echo "$(GREEN)[SUCCESS] X authority data merged successfully$(NC)"; \
 		else \
 			touch "$(XAUTH)"; \
-			echo "$(YELLOW)[WARNING] Created empty X authority file (no X session found)$(NC)"; \
 		fi; \
 		chmod a+r "$(XAUTH)"; \
 	fi
-	@echo "$(BLUE)[INFO] Verifying file contents:$(NC)"
-	@file $(XAUTH) || echo "$(YELLOW)[WARNING] Could not verify X authority file$(NC)"
-	@echo "$(BLUE)[INFO] Permissions:$(NC)"
+	@echo "$(GREEN)Done.$(NC)"
+	@echo ""
+	@echo "$(BLUE)Verifying file contents:$(NC)"
+	@file $(XAUTH)
+	@echo "$(YELLOW)--> It should say \"X11 Xauthority data\".$(NC)"
+	@echo ""
+	@echo "$(BLUE)Permissions:$(NC)"
 	@ls -FAlh $(XAUTH)
+	@echo ""
+
+build: docker-check ## Build the HD Desktop Docker image (with cache refresh)
+	@echo "$(BLUE)[INFO] Building HD Desktop image with fresh cache...$(NC)"
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+
+build-quick: docker-check ## Build the HD Desktop Docker image (using cache)
+	@echo "$(BLUE)[INFO] Building HD Desktop image (using cache)...$(NC)"
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: docker-check x11-setup ## Run HD Desktop container with GPU support
 	@echo "$(BLUE)[INFO] Starting HD Desktop container with GPU support...$(NC)"
