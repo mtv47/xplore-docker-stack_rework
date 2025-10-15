@@ -46,31 +46,33 @@ docker-check: ## Check if Docker is running
 	fi
 
 x11-setup: ## Setup X11 forwarding for GUI applications
-	@echo "$(BLUE)[INFO] Setting up X11 forwarding...$(NC)"
-	@if [ -f "$(XAUTH)" ] && ! xauth -f "$(XAUTH)" list > /dev/null 2>&1; then \
-		echo "$(YELLOW)[WARNING] Removing corrupted X authority file...$(NC)"; \
-		rm -f "$(XAUTH)"; \
-	fi
-	@if [ ! -f "$(XAUTH)" ]; then \
-		echo "$(BLUE)[INFO] Creating X authority file...$(NC)"; \
-		xauth_list=$$(xauth nlist :0 2>/dev/null | tail -n 1 | sed -e 's/^..../ffff/' || true); \
-		if [ -n "$$xauth_list" ]; then \
+	@echo "$(BLUE)[INFO] Preparing Xauthority data...$(NC)"
+	@xauth_list=$$(xauth nlist :0 | tail -n 1 | sed -e 's/^..../ffff/'); \
+	if [ ! -f "$(XAUTH)" ]; then \
+		if [ ! -z "$$xauth_list" ]; then \
 			echo "$$xauth_list" | xauth -f "$(XAUTH)" nmerge -; \
-			echo "$(GREEN)[SUCCESS] X authority data merged successfully$(NC)"; \
 		else \
 			touch "$(XAUTH)"; \
-			echo "$(YELLOW)[WARNING] Created empty X authority file (no X session found)$(NC)"; \
 		fi; \
 		chmod a+r "$(XAUTH)"; \
 	fi
+	@echo "$(GREEN)[SUCCESS] Done.$(NC)"
+	@echo ""
 	@echo "$(BLUE)[INFO] Verifying file contents:$(NC)"
-	@file $(XAUTH) || echo "$(YELLOW)[WARNING] Could not verify X authority file$(NC)"
+	@file $(XAUTH)
+	@echo "--> It should say \"X11 Xauthority data\"."
+	@echo ""
 	@echo "$(BLUE)[INFO] Permissions:$(NC)"
 	@ls -FAlh $(XAUTH)
+	@echo ""
 
-build: docker-check ## Build the Avionics ROS Jetson Docker image
+build: docker-check ## Build the Avionics ROS Jetson Docker image (verbose output)
 	@echo "$(BLUE)[INFO] Building Avionics ROS Jetson image...$(NC)"
 	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+
+build-quick: docker-check ## Build the Avionics ROS Jetson Docker image (fast, minimal output)
+	@echo "$(BLUE)[INFO] Quick building Avionics ROS Jetson image...$(NC)"
+	docker build -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: docker-check x11-setup ## Run Avionics ROS Jetson container (interactive)
 	@echo "$(BLUE)[INFO] Starting Avionics ROS Jetson container...$(NC)"
@@ -98,11 +100,11 @@ start-stack: docker-check x11-setup ## Start Avionics ROS stack automatically (p
 		docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
 			cd ..; \
-			export RMW_IMPLEMENTATION=rmw_cyclonedx_cpp; \
+			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 			export DISPLAY=unix\$$DISPLAY; \
 			export QT_X11_NO_MITSHM=1; \
 			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash 2>/dev/null || true; \
+			source install/setup.bash; \
 			ros2 launch avionics_nexus launch.py"; \
 	else \
 		echo "$(BLUE)[INFO] Starting new container with avionics stack...$(NC)"; \
@@ -138,11 +140,11 @@ attach: docker-check ## Attach to running Avionics ROS Jetson container
 	@echo "🔗 Attaching to Avionics ROS Jetson container..."
 	@echo ""
 	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
-		export RMW_IMPLEMENTATION=rmw_cyclonedx_cpp; \
+		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
 		export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-		source install/setup.bash 2>/dev/null || true; \
+		source install/setup.bash; \
 		echo '🚀 Welcome to Avionics ROS Jetson container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
@@ -188,62 +190,6 @@ status: docker-check ## Show status of Avionics ROS Jetson containers and volume
 	@echo ""
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
-
-hardware-check: ## Check Jetson hardware and device availability
-	@echo "$(BLUE)[INFO] Checking Jetson hardware interfaces...$(NC)"
-	@echo ""
-	@echo "$(GREEN)GPU Information:$(NC)"
-	@if command -v nvidia-smi > /dev/null 2>&1; then \
-		nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader,nounits 2>/dev/null || echo "$(YELLOW)NVIDIA GPU not available$(NC)"; \
-	else \
-		echo "$(YELLOW)nvidia-smi not available$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Jetson Platform:$(NC)"
-	@if [ -f /etc/nv_tegra_release ]; then \
-		cat /etc/nv_tegra_release; \
-	else \
-		echo "$(YELLOW)Not running on Jetson platform$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Serial Devices:$(NC)"
-	@if ls /dev/ttyUSB* > /dev/null 2>&1; then \
-		ls -la /dev/ttyUSB*; \
-	else \
-		echo "$(YELLOW)No USB serial devices found$(NC)"; \
-	fi
-	@if ls /dev/ttyACM* > /dev/null 2>&1; then \
-		ls -la /dev/ttyACM*; \
-	else \
-		echo "$(YELLOW)No ACM serial devices found$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(GREEN)Device Permissions:$(NC)"
-	@groups $(USER) | grep -E "(dialout|video|gpio)" || echo "$(YELLOW)User not in hardware groups$(NC)"
-
-dev-shell: docker-check x11-setup ## Run Jetson development shell without auto-launch
-	@echo "$(BLUE)[INFO] Starting Avionics ROS Jetson development shell...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME)_dev \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v elec_humble_jetson_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c " \
-			export RMW_IMPLEMENTATION=rmw_cyclonedx_cpp; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash 2>/dev/null || true; \
-			echo '🔧 Jetson development shell ready!'; \
-			/bin/bash"
 
 launch-stack: ## Launch avionics stack in running container
 	@echo "$(BLUE)[INFO] Launching avionics stack in running container...$(NC)"
