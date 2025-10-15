@@ -1,0 +1,121 @@
+services:
+  rover:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+      target: build-rover
+    image: ghcr.io/epflxplore/rover:humble-desktop
+    container_name: rover_humble_desktop
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    environment:
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH:-/tmp/.docker.xauth}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH:-/tmp/.docker.xauth}:${XAUTH:-/tmp/.docker.xauth}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /run/jtop.sock:/run/jtop.sock
+      - /dev:/dev
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - rover_humble_desktop_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "
+        sudo chown -R xplore:xplore /home/xplore;
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        echo '🚀 Rover Desktop container ready!';
+        echo 'Environment configured with:';
+        echo '  - ROS 2 Humble';
+        echo '  - CycloneDDS middleware';
+        echo '  - X11 forwarding';
+        echo '';
+        /bin/bash"
+    profiles:
+      - default
+
+  rover-mac:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+      target: build-rover
+    image: ghcr.io/epflxplore/rover:humble-desktop
+    container_name: rover_humble_desktop
+    stdin_open: true
+    tty: true
+    privileged: true
+    restart: "no"
+    networks:
+      - docker_humble_desktop_cs_frontend_net
+    environment:
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH:-/tmp/.docker.xauth}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH:-/tmp/.docker.xauth}:${XAUTH:-/tmp/.docker.xauth}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /run/jtop.sock:/run/jtop.sock
+      - /dev:/dev
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - rover_humble_desktop_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "
+        sudo chown -R xplore:xplore /home/xplore;
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        echo '🚀 Rover Desktop container ready (Mac mode)!';
+        echo 'Environment configured with:';
+        echo '  - ROS 2 Humble';
+        echo '  - CycloneDDS middleware';
+        echo '  - X11 forwarding';
+        echo '  - Network: docker_humble_desktop_cs_frontend_net';
+        echo '';
+        /bin/bash"
+    profiles:
+      - mac
+
+  rover-cameras:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+      target: build-rover
+    image: ghcr.io/epflxplore/rover:humble-desktop
+    container_name: rover_humble_desktop
+    privileged: true
+    network_mode: host
+    restart: "no"
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH:-/tmp/.docker.xauth}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH:-/tmp/.docker.xauth}:${XAUTH:-/tmp/.docker.xauth}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /run/jtop.sock:/run/jtop.sock
+      - /dev:/dev
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - rover_humble_desktop_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "
+        colcon build &&
+        unset RMW_IMPLEMENTATION &&
+        source install/setup.bash &&
+        ros2 run rover_pkg new_camera_cs"
+    profiles:
+      - cameras
+
+volumes:
+  rover_humble_desktop_home_volume:
+    external: true
+    name: rover_humble_desktop_home_volume
+
+networks:
+  docker_humble_desktop_cs_frontend_net:
+    external: true
+    name: docker_humble_desktop_cs_frontend_net

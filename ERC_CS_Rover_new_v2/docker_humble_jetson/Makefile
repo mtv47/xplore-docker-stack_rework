@@ -1,7 +1,7 @@
 # Rover Jetson Docker Makefile
-# Provides convenient commands for managing the Rover Jetson containers
+# Provides convenient commands for managing the Rover Jetson containers using Docker Compose
 
-.PHONY: help build build-quick run run-rover attach stop stop-rover stop-cameras clean docker-check x11-setup
+.PHONY: help build build-quick run run-rover attach stop stop-rover stop-cameras clean docker-check x11-setup status logs
 
 # Default target
 .DEFAULT_GOAL := help
@@ -22,7 +22,7 @@ USERNAME = xplore
 PARENT_DIR = $(shell dirname $(PWD))
 JTOP_GID = $(shell getent group jtop | awk -F: '{print $$3}' 2>/dev/null || echo "")
 
-# Export environment variables
+# Export environment variables for Docker Compose
 export XAUTH
 export PARENT_DIR
 export DISPLAY
@@ -41,6 +41,7 @@ help: ## Show this help message
 	@echo "  make run-rover   # Run rover launch script"
 	@echo "  make attach      # Attach to running container"
 	@echo "  make stop-rover  # Stop rover container"
+	@echo "  make stop        # Stop the container"
 	@echo ""
 
 docker-check: ## Check if Docker is running
@@ -79,24 +80,9 @@ build-quick: docker-check ## Build the Rover Jetson Docker image (with cache for
 
 run: docker-check x11-setup ## Run interactive Rover Jetson container
 	@echo "$(BLUE)[INFO] Starting Rover Jetson container...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /run/jtop.sock:/run/jtop.sock \
-		-v /dev:/dev \
-		-v /home/$(USERNAME)/photos_competition:/home/$(USERNAME)/dev_ws/photos_competition \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v rover_humble_jetson_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); /bin/bash"
+	docker compose --profile default up -d rover
+	@echo "$(GREEN)[SUCCESS] Rover Jetson started$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 run-rover: docker-check x11-setup ## Run rover launch script (start or attach)
 	@echo "$(BLUE)[INFO] Starting/Attaching to Rover...$(NC)"
@@ -112,30 +98,7 @@ run-rover: docker-check x11-setup ## Run rover launch script (start or attach)
 			ros2 launch rover_pkg launch.py"; \
 	else \
 		echo "$(GREEN)Container $(CONTAINER_NAME) is not running. Starting a new container...$(NC)"; \
-		docker run -i \
-			--name $(CONTAINER_NAME) \
-			--rm \
-			--privileged \
-			--net=host \
-			-e DISPLAY=unix$$DISPLAY \
-			-e QT_X11_NO_MITSHM=1 \
-			-e XAUTHORITY=$(XAUTH) \
-			-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-			-v $(XAUTH):$(XAUTH) \
-			-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-			-v /dev:/dev \
-			-v /home/$(USERNAME)/photos_competition:/home/$(USERNAME)/dev_ws/photos_competition \
-			-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-			-v rover_humble_jetson_home_volume:/home/$(USERNAME) \
-			$(IMAGE_NAME) \
-			/bin/bash -c " \
-				sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-				export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-				export DISPLAY=unix\$$DISPLAY; \
-				export QT_X11_NO_MITSHM=1; \
-				export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-				source install/setup.bash; \
-				ros2 launch rover_pkg launch.py"; \
+		docker compose --profile launch up rover-launch; \
 	fi
 
 attach: docker-check ## Attach to running Rover Jetson container
@@ -167,33 +130,20 @@ attach: docker-check ## Attach to running Rover Jetson container
 
 stop: docker-check ## Stop the main Rover Jetson container
 	@echo "$(BLUE)[INFO] Stopping Rover Jetson container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker stop $(CONTAINER_NAME); \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
-	fi
+	docker compose down
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
 stop-rover: stop ## Alias for stop (stop rover container)
 
 stop-cameras: docker-check ## Stop the camera container
 	@echo "$(BLUE)[INFO] Stopping camera container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CAMERA_CONTAINER_NAME)$$"; then \
-		docker stop $(CAMERA_CONTAINER_NAME); \
-		echo "$(GREEN)[SUCCESS] Camera container stopped$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] Camera container is not running$(NC)"; \
-	fi
+	@echo "$(YELLOW)[INFO] Camera containers are managed by Docker Compose profiles$(NC)"
+	@echo "Use 'make stop' to stop all containers"
 
 clean: docker-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up Rover Jetson resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker rm -f $(CONTAINER_NAME); \
-	fi
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CAMERA_CONTAINER_NAME)$$"; then \
-		docker rm -f $(CAMERA_CONTAINER_NAME); \
-	fi
+	@docker compose down --volumes 2>/dev/null || true
 	@if docker volume ls -q | grep -q "rover_humble_jetson_home_volume"; then \
 		docker volume rm rover_humble_jetson_home_volume; \
 	fi
@@ -204,11 +154,19 @@ clean: docker-check ## Clean up containers, volumes, and images
 status: docker-check ## Show status of Rover Jetson containers and volumes
 	@echo "$(BLUE)[INFO] Rover Jetson status:$(NC)"
 	@echo ""
-	@echo "$(GREEN)Containers:$(NC)"
-	@docker ps -a --filter "name=rover_humble_jetson" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
+	@echo "$(GREEN)Docker Compose Services:$(NC)"
+	@docker compose ps 2>/dev/null || echo "No compose services found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=rover_humble_jetson" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
 	@echo ""
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
+
+logs: docker-check ## Show logs from the Rover Jetson container
+	@echo "$(BLUE)[INFO] Showing Rover Jetson container logs...$(NC)"
+	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker compose logs -f; \
+	else \
+		echo "$(YELLOW)[INFO] No containers are running$(NC)"; \
+	fi

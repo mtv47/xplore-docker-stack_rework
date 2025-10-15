@@ -1,7 +1,7 @@
 # Rover Desktop Docker Makefile
-# Provides convenient commands for managing the Rover Desktop containers
+# Provides convenient commands for managing the Rover Desktop containers using Docker Compose
 
-.PHONY: help build build-quick run run-mac run-cameras attach stop clean docker-check x11-setup
+.PHONY: help build build-quick run run-mac run-cameras attach stop clean docker-check x11-setup status logs
 
 # Default target
 .DEFAULT_GOAL := help
@@ -20,7 +20,7 @@ CONTAINER_NAME = rover_humble_desktop
 USERNAME = xplore
 PARENT_DIR = $(shell dirname $(PWD))
 
-# Export environment variables
+# Export environment variables for Docker Compose
 export XAUTH
 export PARENT_DIR
 export DISPLAY
@@ -38,6 +38,7 @@ help: ## Show this help message
 	@echo "  make run-mac     # Run for Mac with network"
 	@echo "  make run-cameras # Run camera service"
 	@echo "  make attach      # Attach to running container"
+	@echo "  make stop        # Stop the container"
 	@echo ""
 
 docker-check: ## Check if Docker is running
@@ -76,65 +77,19 @@ build-quick: docker-check ## Build the Rover Desktop Docker image (with cache fo
 
 run: docker-check x11-setup ## Run interactive Rover Desktop container
 	@echo "$(BLUE)[INFO] Starting Rover Desktop container...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		-e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /run/jtop.sock:/run/jtop.sock \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v rover_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); /bin/bash"
+	docker compose --profile default up -d rover
+	@echo "$(GREEN)[SUCCESS] Rover Desktop started$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 run-mac: docker-check x11-setup ## Run Rover Desktop container for Mac with network
 	@echo "$(BLUE)[INFO] Starting Rover Desktop container for Mac...$(NC)"
-	docker run -it \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--network docker_humble_desktop_cs_frontend_net \
-		-e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /run/jtop.sock:/run/jtop.sock \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v rover_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); /bin/bash"
+	docker compose --profile mac up -d rover-mac
+	@echo "$(GREEN)[SUCCESS] Rover Desktop started in Mac mode$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 run-cameras: docker-check x11-setup ## Run camera service
 	@echo "$(BLUE)[INFO] Starting camera service...$(NC)"
-	docker run \
-		--name $(CONTAINER_NAME) \
-		--rm \
-		--privileged \
-		--net=host \
-		-e DISPLAY=unix$$DISPLAY \
-		-e QT_X11_NO_MITSHM=1 \
-		-e XAUTHORITY=$(XAUTH) \
-		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v $(XAUTH):$(XAUTH) \
-		-v /run/user/1000/at-spi:/run/user/1000/at-spi \
-		-v /run/jtop.sock:/run/jtop.sock \
-		-v /dev:/dev \
-		-v $(PARENT_DIR):/home/$(USERNAME)/dev_ws/src \
-		-v rover_humble_desktop_home_volume:/home/$(USERNAME) \
-		$(IMAGE_NAME) \
-		/bin/bash -c "colcon build && unset RMW_IMPLEMENTATION && source install/setup.bash && ros2 run rover_pkg new_camera_cs"
+	docker compose --profile cameras up rover-cameras
 
 attach: docker-check ## Attach to running Rover Desktop container
 	@echo "$(BLUE)[INFO] Attaching to Rover Desktop container...$(NC)"
@@ -164,19 +119,13 @@ attach: docker-check ## Attach to running Rover Desktop container
 
 stop: docker-check ## Stop the Rover Desktop container
 	@echo "$(BLUE)[INFO] Stopping Rover Desktop container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker stop $(CONTAINER_NAME); \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
-	fi
+	docker compose down
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
 clean: docker-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up Rover Desktop resources...$(NC)"
 	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker rm -f $(CONTAINER_NAME); \
-	fi
+	@docker compose down --volumes 2>/dev/null || true
 	@if docker volume ls -q | grep -q "rover_humble_desktop_home_volume"; then \
 		docker volume rm rover_humble_desktop_home_volume; \
 	fi
@@ -187,11 +136,19 @@ clean: docker-check ## Clean up containers, volumes, and images
 status: docker-check ## Show status of Rover Desktop containers and volumes
 	@echo "$(BLUE)[INFO] Rover Desktop status:$(NC)"
 	@echo ""
-	@echo "$(GREEN)Containers:$(NC)"
-	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
+	@echo "$(GREEN)Docker Compose Services:$(NC)"
+	@docker compose ps 2>/dev/null || echo "No compose services found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=rover_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
 	@echo ""
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
+
+logs: docker-check ## Show logs from the Rover Desktop container
+	@echo "$(BLUE)[INFO] Showing Rover Desktop container logs...$(NC)"
+	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker compose logs -f; \
+	else \
+		echo "$(YELLOW)[INFO] No containers are running$(NC)"; \
+	fi
