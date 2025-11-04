@@ -82,4 +82,5 @@ services:
 
 volumes:
   nav_humble_desktop_home_volume:
-    driver: local
+    external: true
+    name: nav_humble_desktop_home_volume

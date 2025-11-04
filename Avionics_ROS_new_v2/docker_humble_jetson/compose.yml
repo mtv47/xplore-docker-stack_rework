@@ -29,3 +29,5 @@ services:
 
 volumes:
   elec_humble_jetson_home_volume:
+    external: true
+    name: elec_humble_jetson_home_volume

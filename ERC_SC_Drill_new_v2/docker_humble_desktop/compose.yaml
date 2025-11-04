@@ -67,4 +67,5 @@ services:
 
 volumes:
   sc_humble_desktop_home_volume:
-    driver: local
+    external: true
+    name: sc_humble_desktop_home_volume

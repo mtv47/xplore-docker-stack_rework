@@ -71,8 +71,10 @@ services:
 
 volumes:
     cs_humble_desktop_home_volume:
-        external: true
-        name: cs_humble_desktop_home_volume
+      external: true
+      name: cs_humble_desktop_home_volume
 
 networks:
     cs_frontend_net:
+      external: true
+      name: cs_frontend_net

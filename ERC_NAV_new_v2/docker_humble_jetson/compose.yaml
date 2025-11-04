@@ -60,4 +60,4 @@ services:
 volumes:
   nav_humble_jetson_home_volume:
     external: true
-    driver: local
+    name: nav_humble_jetson_home_volume
