@@ -1,7 +1,7 @@
 # ERC Control Station Desktop Docker Makefile
 # Provides convenient commands for managing the Control Station containers using Docker Compose
 
-.PHONY: help build run run-mac attach stop clean docker-check x11-setup status logs launch-cs remove_volume remove_network create_volume create_network
+.PHONY: help build run run-mac attach stop docker-check x11-setup status logs launch-cs remove_volume remove_network create_volume create_network
 
 # Default target
 .DEFAULT_GOAL := help
@@ -127,17 +127,6 @@ stop: docker-check ## Stop the Control Station container
 	@echo "$(BLUE)[INFO] Stopping Control Station container...$(NC)"
 	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
-
-clean: docker-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up Control Station resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@docker compose down --volumes 2>/dev/null || true
-	@if docker volume ls -q | grep -q "cs_humble_desktop_home_volume"; then \
-		docker volume rm cs_humble_desktop_home_volume; \
-	fi
-	@if docker images -q $(IMAGE_NAME) | head -1 | xargs -r docker rmi; then \
-		echo "$(GREEN)Cleanup complete!$(NC)"; \
-	fi
 
 create_volume: docker-check ## Create the persistent home volume for Control Station
 	@echo "$(BLUE)[INFO] Creating persistent home volume for Control Station...$(NC)"
