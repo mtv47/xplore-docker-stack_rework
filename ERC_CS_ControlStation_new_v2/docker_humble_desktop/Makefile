@@ -188,7 +188,7 @@ status: docker-check ## Show status of Control Station containers and volumes
 	@echo "$(BLUE)[INFO] Control Station status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Docker Compose Services:$(NC)"
-	@docker ps -a 2>/dev/null || echo "No compose services found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=cs_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
