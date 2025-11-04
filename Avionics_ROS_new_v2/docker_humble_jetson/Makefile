@@ -1,7 +1,7 @@
 # Avionics ROS Jetson Docker Makefile
 # Provides convenient commands for managing the Avionics ROS Jetson containers
 
-.PHONY: help build run run-interactive attach stop clean docker-check x11-setup start-stack stop-stack launch-stack logs
+.PHONY: help build run attach stop docker-check x11-setup stop-stack launch-stack logs create_volume remove_volume status
 
 # Default target
 .DEFAULT_GOAL := help
@@ -18,7 +18,7 @@ XAUTH ?= /tmp/.docker.xauth
 IMAGE_NAME = ghcr.io/epflxplore/elec:humble-jetson
 CONTAINER_NAME = elec_humble_jetson
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR = $(abspath $(CURDIR)/..)
 
 # Export environment variables
 export XAUTH
@@ -69,42 +69,16 @@ x11-setup: ## Setup X11 forwarding for GUI applications
 
 build: docker-check ## Build the Avionics ROS Jetson Docker image (verbose output)
 	@echo "$(BLUE)[INFO] Building Avionics ROS Jetson image...$(NC)"
-	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 build-quick: docker-check ## Build the Avionics ROS Jetson Docker image (fast, minimal output)
 	@echo "$(BLUE)[INFO] Quick building Avionics ROS Jetson image...$(NC)"
-	docker build -t $(IMAGE_NAME) -f Dockerfile ..
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: docker-check x11-setup ## Run Avionics ROS Jetson container (detached)
 	@echo "$(BLUE)[INFO] Starting Avionics ROS Jetson container...$(NC)"
-	XAUTH=$(XAUTH) PARENT_DIR=$(PARENT_DIR) DISPLAY=$$DISPLAY \
-	docker-compose up -d avionics-jetson
+	docker compose up -d avionics-jetson
 	@echo "$(GREEN)[SUCCESS] Container started. Use 'make attach' to connect.$(NC)"
-
-run-interactive: docker-check x11-setup ## Run Avionics ROS Jetson container (interactive)
-	@echo "$(BLUE)[INFO] Starting Avionics ROS Jetson container interactively...$(NC)"
-	XAUTH=$(XAUTH) PARENT_DIR=$(PARENT_DIR) DISPLAY=$$DISPLAY \
-	docker-compose run --rm avionics-jetson
-
-start-stack: docker-check x11-setup ## Start Avionics ROS stack automatically (production mode)
-	@echo "$(BLUE)[INFO] Starting Avionics ROS Jetson stack...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(YELLOW)[INFO] Container $(CONTAINER_NAME) is already running. Launching stack...$(NC)"; \
-		docker-compose exec avionics-jetson /bin/bash -c " \
-			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			cd ..; \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export DISPLAY=unix\$$DISPLAY; \
-			export QT_X11_NO_MITSHM=1; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash; \
-			ros2 launch avionics_nexus launch.py"; \
-	else \
-		echo "$(BLUE)[INFO] Starting new container with avionics stack...$(NC)"; \
-		XAUTH=$(XAUTH) PARENT_DIR=$(PARENT_DIR) DISPLAY=$$DISPLAY \
-		docker-compose run --rm avionics-jetson \
-			/bin/bash -c "sudo bash -c 'cd /home/$(USERNAME)/dev_ws && source install/setup.sh && ros2 launch avionics_nexus launch.py'"; \
-	fi
 
 attach: docker-check ## Attach to running Avionics ROS Jetson container
 	@echo "$(BLUE)[INFO] Attaching to Avionics ROS Jetson container...$(NC)"
@@ -119,7 +93,7 @@ attach: docker-check ## Attach to running Avionics ROS Jetson container
 	fi
 	@echo "🔗 Attaching to Avionics ROS Jetson container..."
 	@echo ""
-	docker-compose exec avionics-jetson /bin/bash -c " \
+	docker compose exec avionics-jetson /bin/bash -c " \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
@@ -137,24 +111,27 @@ attach: docker-check ## Attach to running Avionics ROS Jetson container
 
 stop: docker-check ## Stop the Avionics ROS Jetson container
 	@echo "$(BLUE)[INFO] Stopping Avionics ROS Jetson container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker-compose down; \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
-	fi
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)";
 
 stop-stack: stop ## Stop the Avionics ROS stack (alias for stop)
 
-clean: docker-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up Avionics ROS Jetson resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	docker-compose down --volumes
-	@if docker volume ls -q | grep -q "elec_humble_jetson_home_volume"; then \
-		docker volume rm elec_humble_jetson_home_volume; \
+create_volume: docker-check ## Create the persistent home volume for Avionics ROS Jetson
+	@echo "$(BLUE)[INFO] Creating persistent home volume for Avionics ROS Jetson...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^elec_humble_jetson_home_volume$$"; then \
+		docker volume create elec_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: elec_humble_jetson_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume already exists: elec_humble_jetson_home_volume$(NC)"; \
 	fi
-	@if docker images -q $(IMAGE_NAME) | head -1 | xargs -r docker rmi; then \
-		echo "$(GREEN)Cleanup complete!$(NC)"; \
+
+remove_volume: docker-check ## Remove the persistent home volume for Avionics ROS Jetson
+	@echo "$(BLUE)[INFO] Removing persistent home volume for Avionics ROS Jetson...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^elec_humble_jetson_home_volume$$"; then \
+		docker volume rm elec_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume removed: elec_humble_jetson_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume does not exist: elec_humble_jetson_home_volume$(NC)"; \
 	fi
 
 status: docker-check ## Show status of Avionics ROS Jetson containers and volumes
@@ -176,7 +153,7 @@ launch-stack: ## Launch avionics stack in running container
 		echo "Start it first with: make run or make start-stack"; \
 		exit 1; \
 	fi
-	docker-compose exec avionics-jetson /bin/bash -c " \
+	docker compose exec avionics-jetson /bin/bash -c " \
 		cd /home/$(USERNAME)/dev_ws; \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		source install/setup.bash; \
@@ -185,7 +162,7 @@ launch-stack: ## Launch avionics stack in running container
 logs: docker-check ## Show logs from the Avionics ROS Jetson container
 	@echo "$(BLUE)[INFO] Showing Avionics ROS Jetson container logs...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker-compose logs -f avionics-jetson; \
+		docker compose logs -f avionics-jetson; \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi
