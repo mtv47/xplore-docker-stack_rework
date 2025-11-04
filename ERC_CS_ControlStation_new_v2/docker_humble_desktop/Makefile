@@ -1,7 +1,7 @@
 # ERC Control Station Desktop Docker Makefile
 # Provides convenient commands for managing the Control Station containers using Docker Compose
 
-.PHONY: help build run run-mac attach stop clean docker-check x11-setup status logs launch-cs
+.PHONY: help build run run-mac attach stop clean docker-check x11-setup status logs launch-cs remove_volume remove_network create_volume create_network
 
 # Default target
 .DEFAULT_GOAL := help
@@ -18,7 +18,7 @@ XAUTH ?= /tmp/.docker.xauth
 IMAGE_NAME = ghcr.io/epflxplore/cs:humble-desktop
 CONTAINER_NAME = cs_humble_desktop
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR := $(abspath $(CURDIR)/..)
 
 # Export environment variables for Docker Compose
 export XAUTH
@@ -125,7 +125,7 @@ attach: docker-check ## Attach to running Control Station container
 
 stop: docker-check ## Stop the Control Station container
 	@echo "$(BLUE)[INFO] Stopping Control Station container...$(NC)"
-	docker compose down
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
 clean: docker-check ## Clean up containers, volumes, and images
@@ -139,11 +139,56 @@ clean: docker-check ## Clean up containers, volumes, and images
 		echo "$(GREEN)Cleanup complete!$(NC)"; \
 	fi
 
+create_volume: docker-check ## Create the persistent home volume for Control Station
+	@echo "$(BLUE)[INFO] Creating persistent home volume for Control Station...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^cs_humble_desktop_home_volume$$"; then \
+		docker volume create cs_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: cs_humble_desktop_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume already exists: cs_humble_desktop_home_volume$(NC)"; \
+	fi
+
+create_network: docker-check ## Create the frontend network for Control Station
+	@echo "$(BLUE)[INFO] Creating frontend network for Control Station...$(NC)"
+	@if ! docker network ls --format "{{.Name}}" | grep -q "^cs_frontend_net$$"; then \
+		docker network create cs_frontend_net; \
+		echo "$(GREEN)[SUCCESS] Network created: cs_frontend_net$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Network already exists: cs_frontend_net$(NC)"; \
+	fi
+
+remove_volume: docker-check ## Remove the persistent home volume for Control Station
+	@echo "$(BLUE)[INFO] Removing persistent home volume for Control Station...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^cs_humble_desktop_home_volume$$"; then \
+		docker volume rm cs_humble_desktop_home_volume && \
+		echo "$(GREEN)[SUCCESS] Volume removed: cs_humble_desktop_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume not found: cs_humble_desktop_home_volume$(NC)"; \
+	fi
+
+remove_network: docker-check ## Remove the frontend network for Control Station
+	@echo "$(BLUE)[INFO] Removing frontend network for Control Station...$(NC)"
+	@if docker network ls --format "{{.Name}}" | grep -q "^cs_frontend_net$$"; then \
+		docker network rm cs_frontend_net && \
+		echo "$(GREEN)[SUCCESS] Network removed: cs_frontend_net$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Network not found: cs_frontend_net$(NC)"; \
+	fi
+
+remove_container: docker-check ## Remove the Control Station container
+	@echo "$(BLUE)[INFO] Removing Control Station container...$(NC)"
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME) && \
+		echo "$(GREEN)[SUCCESS] Container removed: $(CONTAINER_NAME)$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Container not found: $(CONTAINER_NAME)$(NC)"; \
+	fi
+
 status: docker-check ## Show status of Control Station containers and volumes
 	@echo "$(BLUE)[INFO] Control Station status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Docker Compose Services:$(NC)"
-	@docker compose ps 2>/dev/null || echo "No compose services found"
+	@docker ps -a 2>/dev/null || echo "No compose services found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=cs_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
