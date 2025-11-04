@@ -154,7 +154,7 @@ stop-hd-stack: docker-check ## Stop HD stack container
 
 stop-motors: docker-check ## Stop the motors container
 	@echo "$(BLUE)[INFO] Stopping HD Motors container...$(NC)"
-	docker compose stop hd-jetson-motors
+	docker compose stop hd_humble
 	@echo "$(GREEN)[SUCCESS] Motors container stopped$(NC)"
 
 clean: docker-check ## Clean up containers, volumes, and images
