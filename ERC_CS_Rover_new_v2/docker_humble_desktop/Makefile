@@ -1,7 +1,7 @@
 # Rover Desktop Docker Makefile
 # Provides convenient commands for managing the Rover Desktop containers using Docker Compose
 
-.PHONY: help build build-quick run run-mac run-cameras attach stop clean docker-check x11-setup status logs
+.PHONY: help build build-quick run run-mac run-cameras attach stop docker-check x11-setup status logs, create_volume create_network remove_volume remove_network remove_container
 
 # Default target
 .DEFAULT_GOAL := help
@@ -18,7 +18,7 @@ XAUTH ?= /tmp/.docker.xauth
 IMAGE_NAME = ghcr.io/epflxplore/rover:humble-desktop
 CONTAINER_NAME = rover_humble_desktop
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR = $(abspath $(CURDIR)/..)
 
 # Export environment variables for Docker Compose
 export XAUTH
@@ -69,27 +69,32 @@ x11-setup: ## Setup X11 forwarding for GUI applications
 
 build: docker-check ## Build the Rover Desktop Docker image (full rebuild, no cache)
 	@echo "$(BLUE)[INFO] Building Rover Desktop image (full rebuild)...$(NC)"
-	docker build --no-cache --progress=plain --target build-rover -t $(IMAGE_NAME) -f Dockerfile ..
+	docker build --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 build-quick: docker-check ## Build the Rover Desktop Docker image (with cache for faster builds)
 	@echo "$(BLUE)[INFO] Building Rover Desktop image (quick build with cache)...$(NC)"
-	docker build --progress=plain --target build-rover -t $(IMAGE_NAME) -f Dockerfile ..
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: docker-check x11-setup ## Run interactive Rover Desktop container
 	@echo "$(BLUE)[INFO] Starting Rover Desktop container...$(NC)"
 	docker compose --profile default up -d rover
+	@echo "rover" > .running_service
 	@echo "$(GREEN)[SUCCESS] Rover Desktop started$(NC)"
 	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 run-mac: docker-check x11-setup ## Run Rover Desktop container for Mac with network
 	@echo "$(BLUE)[INFO] Starting Rover Desktop container for Mac...$(NC)"
 	docker compose --profile mac up -d rover-mac
+	@echo "rover-mac" > .running_service
 	@echo "$(GREEN)[SUCCESS] Rover Desktop started in Mac mode$(NC)"
 	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 run-cameras: docker-check x11-setup ## Run camera service
 	@echo "$(BLUE)[INFO] Starting camera service...$(NC)"
-	docker compose --profile cameras up rover-cameras
+	docker compose --profile cameras up -d rover-cameras
+	@echo "rover-cameras" > .running_service
+	@echo "$(GREEN)[SUCCESS] Camera service started$(NC)"
+	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 attach: docker-check ## Attach to running Rover Desktop container
 	@echo "$(BLUE)[INFO] Attaching to Rover Desktop container...$(NC)"
@@ -101,9 +106,11 @@ attach: docker-check ## Attach to running Rover Desktop container
 		echo ""; \
 		exit 1; \
 	fi
-	@echo "🔗 Attaching to Rover Desktop container..."
+	@SERVICE=$$(cat .running_service 2>/dev/null || true); \
+	echo "🔗 Attaching to $$SERVICE Desktop container..."
 	@echo ""
-	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
+	@SERVICE=$$(cat .running_service 2>/dev/null || true); \
+	docker compose exec $$SERVICE /bin/bash -c " \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
@@ -119,25 +126,59 @@ attach: docker-check ## Attach to running Rover Desktop container
 
 stop: docker-check ## Stop the Rover Desktop container
 	@echo "$(BLUE)[INFO] Stopping Rover Desktop container...$(NC)"
-	docker compose down
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
-clean: docker-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up Rover Desktop resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@docker compose down --volumes 2>/dev/null || true
-	@if docker volume ls -q | grep -q "rover_humble_desktop_home_volume"; then \
-		docker volume rm rover_humble_desktop_home_volume; \
+create_volume: docker-check ## Create the persistent home volume for Rover Desktop
+	@echo "$(BLUE)[INFO] Creating persistent home volume for Rover Desktop...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^rover_humble_desktop_home_volume$$"; then \
+		docker volume create rover_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: rover_humble_desktop_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume already exists: rover_humble_desktop_home_volume$(NC)"; \
 	fi
-	@if docker images -q $(IMAGE_NAME) | head -1 | xargs -r docker rmi; then \
-		echo "$(GREEN)Cleanup complete!$(NC)"; \
+
+create_network: docker-check ## Create the frontend network for Rover Desktop
+	@echo "$(BLUE)[INFO] Creating frontend network for Rover Desktop...$(NC)"
+	@if ! docker network ls --format "{{.Name}}" | grep -q "^docker_humble_desktop_cs_frontend_net$$"; then \
+		docker network create docker_humble_desktop_cs_frontend_net; \
+		echo "$(GREEN)[SUCCESS] Network created: docker_humble_desktop_cs_frontend_net$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Network already exists: docker_humble_desktop_cs_frontend_net$(NC)"; \
+	fi
+
+remove_volume: docker-check ## Remove the persistent home volume for Rover Desktop
+	@echo "$(BLUE)[INFO] Removing persistent home volume for Rover Desktop...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^rover_humble_desktop_home_volume$$"; then \
+		docker volume rm rover_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume removed: rover_humble_desktop_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume does not exist: rover_humble_desktop_home_volume$(NC)"; \
+	fi
+
+remove_network: docker-check ## Remove the frontend network for Rover Desktop
+	@echo "$(BLUE)[INFO] Removing frontend network for Rover Desktop...$(NC)"
+	@if docker network ls --format "{{.Name}}" | grep -q "^docker_humble_desktop_cs_frontend_net$$"; then \
+		docker network rm docker_humble_desktop_cs_frontend_net; \
+		echo "$(GREEN)[SUCCESS] Network removed: docker_humble_desktop_cs_frontend_net$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Network does not exist: docker_humble_desktop_cs_frontend_net$(NC)"; \
+	fi
+
+remove_container: docker-check ## Remove the Rover Desktop container
+	@echo "$(BLUE)[INFO] Removing Rover Desktop container...$(NC)"
+	@if docker ps -a --format "{{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container removed: $(CONTAINER_NAME)$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Container does not exist: $(CONTAINER_NAME)$(NC)"; \
 	fi
 
 status: docker-check ## Show status of Rover Desktop containers and volumes
 	@echo "$(BLUE)[INFO] Rover Desktop status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Docker Compose Services:$(NC)"
-	@docker compose ps 2>/dev/null || echo "No compose services found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=rover_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"

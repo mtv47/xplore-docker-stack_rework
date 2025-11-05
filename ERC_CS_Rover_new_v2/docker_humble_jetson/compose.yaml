@@ -43,6 +43,8 @@ services:
       dockerfile: docker_humble_jetson/Dockerfile
     image: ghcr.io/epflxplore/rover:humble-jetson
     container_name: rover_humble_jetson
+    stdin_open: true
+    tty: true
     privileged: true
     network_mode: host
     restart: "no"
@@ -66,7 +68,8 @@ services:
         export QT_X11_NO_MITSHM=1;
         export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages;
         source install/setup.bash;
-        ros2 launch rover_pkg launch.py"
+        ros2 launch rover_pkg launch.py;
+        /bin/bash"
     profiles:
       - launch
 

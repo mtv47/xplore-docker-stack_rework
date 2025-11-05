@@ -86,6 +86,8 @@ services:
       target: build-rover
     image: ghcr.io/epflxplore/rover:humble-desktop
     container_name: rover_humble_desktop
+    stdin_open: true
+    tty: true
     privileged: true
     network_mode: host
     restart: "no"
@@ -106,7 +108,8 @@ services:
         colcon build &&
         unset RMW_IMPLEMENTATION &&
         source install/setup.bash &&
-        ros2 run rover_pkg new_camera_cs"
+        ros2 run rover_pkg new_camera_cs;
+        /bin/bash"
     profiles:
       - cameras
 

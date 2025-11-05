@@ -19,7 +19,7 @@ IMAGE_NAME = ghcr.io/epflxplore/rover:humble-jetson
 CONTAINER_NAME = rover_humble_jetson
 CAMERA_CONTAINER_NAME = rover_humble_jetson_2
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR = $(abspath $(CURDIR)/..)
 JTOP_GID = $(shell getent group jtop | awk -F: '{print $$3}' 2>/dev/null || echo "")
 
 # Export environment variables for Docker Compose
@@ -88,7 +88,7 @@ run-rover: docker-check x11-setup ## Run rover launch script (start or attach)
 	@echo "$(BLUE)[INFO] Starting/Attaching to Rover...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
 		echo "$(GREEN)Container $(CONTAINER_NAME) is already running. Attaching to it...$(NC)"; \
-		docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
+		docker compose exec $(CONTAINER_NAME) /bin/bash -c " \
 			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
 			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 			export DISPLAY=unix\$$DISPLAY; \
@@ -113,7 +113,7 @@ attach: docker-check ## Attach to running Rover Jetson container
 	fi
 	@echo "🔗 Attaching to Rover Jetson container..."
 	@echo ""
-	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
+	docker compose exec $(CONTAINER_NAME) /bin/bash -c " \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
@@ -130,7 +130,7 @@ attach: docker-check ## Attach to running Rover Jetson container
 
 stop: docker-check ## Stop the main Rover Jetson container
 	@echo "$(BLUE)[INFO] Stopping Rover Jetson container...$(NC)"
-	docker compose down
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
 stop-rover: stop ## Alias for stop (stop rover container)
@@ -151,11 +151,29 @@ clean: docker-check ## Clean up containers, volumes, and images
 		echo "$(GREEN)Cleanup complete!$(NC)"; \
 	fi
 
+create_volume: docker-check ## Create the persistent home volume for Rover Jetson
+	@echo "$(BLUE)[INFO] Creating persistent home volume for Rover Jetson...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^rover_humble_jetson_home_volume$$"; then \
+		docker volume create rover_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: rover_humble_jetson_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume already exists: rover_humble_jetson_home_volume$(NC)"; \
+	fi
+
+remove_volume: docker-check ## Remove the persistent home volume for Rover Jetson
+	@echo "$(BLUE)[INFO] Removing persistent home volume for Rover Jetson...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^rover_humble_jetson_home_volume$$"; then \
+		docker volume rm rover_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume removed: rover_humble_jetson_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume does not exist: rover_humble_jetson_home_volume$(NC)"; \
+	fi
+
 status: docker-check ## Show status of Rover Jetson containers and volumes
 	@echo "$(BLUE)[INFO] Rover Jetson status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Docker Compose Services:$(NC)"
-	@docker compose ps 2>/dev/null || echo "No compose services found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=rover_humble_jetson" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
