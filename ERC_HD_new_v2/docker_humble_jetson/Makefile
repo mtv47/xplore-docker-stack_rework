@@ -1,7 +1,7 @@
 # HD Jetson Docker Makefile
 # Provides convenient commands for managing the HD (Heavy Duty) Jetson containers using Docker Compose
 
-.PHONY: help build run run-hd-stack run-motors attach stop stop-hd-stack stop-motors clean docker-check x11-setup jetson-check status logs
+.PHONY: help build run run-hd-stack run-motors attach stop stop-hd-stack stop-motors clean docker-check x11-setup jetson-check status logs create_volume remove_volume
 
 # Default target
 .DEFAULT_GOAL := help
