@@ -1,0 +1,238 @@
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo docker ps -a
+[sudo] password for mtv: 
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+8255ff9b6cb0   bridge    bridge    local
+acd35916b4bc   host      host      local
+0d4eeca6054c   none      null      local
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo docker volume ls
+DRIVER    VOLUME NAME
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make help
+Rover Desktop Docker Commands 
+
+Available commands: 
+  help              Show this help message
+  docker-check      Check if Docker is running
+  build             Build the Rover Desktop Docker image (full rebuild, no cache)
+  build-quick       Build the Rover Desktop Docker image (with cache for faster builds)
+  run               Run interactive Rover Desktop container
+  run-mac           Run Rover Desktop container for Mac with network
+  run-cameras       Run camera service
+  attach            Attach to running Rover Desktop container
+  stop              Stop the Rover Desktop container
+  create_volume     Create the persistent home volume for Rover Desktop
+  create_network    Create the frontend network for Rover Desktop
+  remove_volume     Remove the persistent home volume for Rover Desktop
+  remove_network    Remove the frontend network for Rover Desktop
+  remove_container   Remove the Rover Desktop container
+  status            Show status of Rover Desktop containers and volumes
+  logs              Show logs from the Rover Desktop container
+
+Examples: 
+  make build       # Build the Rover image (full rebuild)
+  make build-quick # Build the Rover image (with cache)
+  make run         # Run interactive container
+  make run-mac     # Run for Mac with network
+  make run-cameras # Run camera service
+  make attach      # Attach to running container
+  make stop        # Stop the container
+
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make run
+[INFO] Preparing Xauthority data... 
+[SUCCESS] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+[INFO] Starting Rover Desktop container... 
+docker compose --profile default up -d rover
+external volume "rover_humble_desktop_home_volume" not found
+make: *** [Makefile:80: run] Error 1
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make create_volume 
+[INFO] Creating persistent home volume for Rover Desktop... 
+rover_humble_desktop_home_volume
+[SUCCESS] Volume created: rover_humble_desktop_home_volume 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make run
+[INFO] Preparing Xauthority data... 
+[SUCCESS] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+[INFO] Starting Rover Desktop container... 
+docker compose --profile default up -d rover
+[+] Running 1/1
+ ✔ Container rover_humble_desktop  Started                                                                                                                                                                                                         1.2s 
+[SUCCESS] Rover Desktop started 
+Use 'make attach' to connect to the container 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make status
+[INFO] Rover Desktop status: 
+
+Docker Compose Services: 
+NAMES                  STATUS          PORTS
+rover_humble_desktop   Up 13 seconds   
+
+Volumes: 
+VOLUME NAME                        DRIVER
+rover_humble_desktop_home_volume   local
+
+Images: 
+REPOSITORY                 TAG              SIZE      CREATED AT
+ghcr.io/epflxplore/rover   humble-desktop   5.91GB    2025-10-11 16:04:38 +0200 CEST
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+8255ff9b6cb0   bridge    bridge    local
+acd35916b4bc   host      host      local
+0d4eeca6054c   none      null      local
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make run-cameras 
+[INFO] Preparing Xauthority data... 
+[SUCCESS] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+[INFO] Starting camera service... 
+docker compose --profile cameras up -d rover-cameras
+[+] Running 1/1
+ ✘ Container rover_humble_desktop  Error response from daemon: Conflict. The container name "/rover_humble_desktop" is already in use by container "30c618a840ff44a4565b95a08e019dc369f60d79f5c7c88b0edb208ec3...                                  0.0s 
+Error response from daemon: Conflict. The container name "/rover_humble_desktop" is already in use by container "30c618a840ff44a4565b95a08e019dc369f60d79f5c7c88b0edb208ec3ee5222". You have to remove (or rename) that container to be able to reuse that name.
+make: *** [Makefile:92: run-cameras] Error 1
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make remove_container 
+[INFO] Removing Rover Desktop container... 
+rover_humble_desktop
+[SUCCESS] Container removed: rover_humble_desktop 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make run-cameras 
+[INFO] Preparing Xauthority data... 
+[SUCCESS] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+[INFO] Starting camera service... 
+docker compose --profile cameras up -d rover-cameras
+[+] Running 1/1
+ ✔ Container rover_humble_desktop  Started                                                                                                                                                                                                         0.1s 
+[SUCCESS] Camera service started 
+Use 'make attach' to connect to the container 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make status
+[INFO] Rover Desktop status: 
+
+Docker Compose Services: 
+NAMES                  STATUS         PORTS
+rover_humble_desktop   Up 5 seconds   
+
+Volumes: 
+VOLUME NAME                        DRIVER
+rover_humble_desktop_home_volume   local
+
+Images: 
+REPOSITORY                 TAG              SIZE      CREATED AT
+ghcr.io/epflxplore/rover   humble-desktop   5.91GB    2025-10-11 16:04:38 +0200 CEST
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make attach 
+[INFO] Attaching to Rover Desktop container... 
+🔗 Attaching to  Desktop container...
+
+docker exec -it rover_humble_desktop /bin/bash -c " \
+	export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
+	export DISPLAY=unix\$DISPLAY; \
+	export QT_X11_NO_MITSHM=1; \
+	export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
+	source install/setup.bash; \
+	echo '🚀 Welcome to Rover Desktop container!'; \
+	echo 'Environment configured with:'; \
+	echo '  - ROS 2 Humble'; \
+	echo '  - CycloneDDS middleware'; \
+	echo '  - X11 forwarding'; \
+	echo ''; \
+	/bin/bash"
+🚀 Welcome to Rover Desktop container!
+Environment configured with:
+  - ROS 2 Humble
+  - CycloneDDS middleware
+  - X11 forwarding
+
+xplore@x570:~/dev_ws$ exit
+exit
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make remove_container 
+[INFO] Removing Rover Desktop container... 
+rover_humble_desktop
+[SUCCESS] Container removed: rover_humble_desktop 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make run
+[INFO] Preparing Xauthority data... 
+[SUCCESS] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+[INFO] Starting Rover Desktop container... 
+docker compose --profile default up -d rover
+[+] Running 1/1
+ ✔ Container rover_humble_desktop  Started                                                                                                                                                                                                         0.1s 
+[SUCCESS] Rover Desktop started 
+Use 'make attach' to connect to the container 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make attach 
+[INFO] Attaching to Rover Desktop container... 
+🔗 Attaching to  Desktop container...
+
+docker exec -it rover_humble_desktop /bin/bash -c " \
+	export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
+	export DISPLAY=unix\$DISPLAY; \
+	export QT_X11_NO_MITSHM=1; \
+	export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
+	source install/setup.bash; \
+	echo '🚀 Welcome to Rover Desktop container!'; \
+	echo 'Environment configured with:'; \
+	echo '  - ROS 2 Humble'; \
+	echo '  - CycloneDDS middleware'; \
+	echo '  - X11 forwarding'; \
+	echo ''; \
+	/bin/bash"
+🚀 Welcome to Rover Desktop container!
+Environment configured with:
+  - ROS 2 Humble
+  - CycloneDDS middleware
+  - X11 forwarding
+
+xplore@x570:~/dev_ws$ exit
+exit
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make stop
+[INFO] Stopping Rover Desktop container... 
+docker stop rover_humble_desktop >/dev/null 2>&1 || true;
+[SUCCESS] Container stopped 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make remove_container 
+[INFO] Removing Rover Desktop container... 
+rover_humble_desktop
+[SUCCESS] Container removed: rover_humble_desktop 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make remove_volume 
+[INFO] Removing persistent home volume for Rover Desktop... 
+rover_humble_desktop_home_volume
+[SUCCESS] Volume removed: rover_humble_desktop_home_volume 
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ sudo make status
+[INFO] Rover Desktop status: 
+
+Docker Compose Services: 
+NAMES     STATUS    PORTS
+
+Volumes: 
+VOLUME NAME   DRIVER
+
+Images: 
+REPOSITORY                 TAG              SIZE      CREATED AT
+ghcr.io/epflxplore/rover   humble-desktop   5.91GB    2025-10-11 16:04:38 +0200 CEST
+mtv@x570:~/Documents/GitHub/ERC_CS_Rover-humble/docker_humble_desktop_new$ 
