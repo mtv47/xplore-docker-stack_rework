@@ -153,11 +153,7 @@ launch-stack: ## Launch avionics stack in running container
 		echo "Start it first with: make run or make start-stack"; \
 		exit 1; \
 	fi
-	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
-		cd /home/$(USERNAME)/dev_ws; \
-		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-		source install/setup.bash; \
-		ros2 launch avionics_nexus launch.py"
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c "sudo bash -c 'cd /home/$USERNAME/dev_ws; source install/setup.sh; ros2 launch avionics_nexus launch.py'"
 
 logs: docker-check ## Show logs from the Avionics ROS Jetson container
 	@echo "$(BLUE)[INFO] Showing Avionics ROS Jetson container logs...$(NC)"

@@ -17,7 +17,6 @@ services:
       - DISPLAY=unix${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=${XAUTH}
-      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
     volumes:
