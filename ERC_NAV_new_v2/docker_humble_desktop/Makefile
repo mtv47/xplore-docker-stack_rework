@@ -1,7 +1,7 @@
 # ERC Navigation Desktop Docker Makefile
 # Provides convenient commands for managing the Navigation Desktop containers
 
-.PHONY: help build run run-gpu run-no-gpu attach stop clean compose-check x11-setup gpu-check
+.PHONY: help build run run-gpu run-no-gpu attach stop compose-check x11-setup gpu-check status logs create_volume remove_volume remove_container
 
 # Default target
 .DEFAULT_GOAL := help
@@ -18,7 +18,7 @@ XAUTH ?= /tmp/.docker.xauth
 IMAGE_NAME = ghcr.io/epflxplore/nav:humble-desktop
 CONTAINER_NAME = nav_humble_desktop
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR := $(abspath $(CURDIR)/..)
 LIDAR_HOST = os-122140001125.local:169.254.55.220
 
 # Export environment variables
@@ -90,21 +90,21 @@ gpu-check: ## Check GPU availability and NVIDIA runtime
 
 build: compose-check ## Build the Navigation Desktop Docker image (with cache refresh)
 	@echo "$(BLUE)[INFO] Building Navigation Desktop image with fresh cache...$(NC)"
-	docker compose build --pull --no-cache --progress=plain nav-desktop
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 build-quick: compose-check ## Build the Navigation Desktop Docker image (using cache)
 	@echo "$(BLUE)[INFO] Building Navigation Desktop image (using cache)...$(NC)"
-	docker compose build --progress=plain nav-desktop
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: run-gpu ## Default run with GPU acceleration (alias for run-gpu)
 
 run-gpu: compose-check x11-setup gpu-check ## Run Navigation Desktop container with NVIDIA GPU acceleration
 	@echo "$(BLUE)[INFO] Starting Navigation Desktop container with GPU acceleration...$(NC)"
-	docker compose --profile gpu up -it nav-desktop-gpu
+	docker compose --profile gpu up -d nav-desktop-gpu
 
 run-no-gpu: compose-check x11-setup ## Run Navigation Desktop container without GPU (compatibility mode)
 	@echo "$(BLUE)[INFO] Starting Navigation Desktop container in compatibility mode (no GPU)...$(NC)"
-	docker compose --profile default up -it nav-desktop
+	docker compose --profile default up -d nav-desktop
 
 attach: compose-check ## Attach to running Navigation Desktop container
 	@echo "$(BLUE)[INFO] Attaching to Navigation Desktop container...$(NC)"
@@ -119,7 +119,7 @@ attach: compose-check ## Attach to running Navigation Desktop container
 	fi
 	@echo "🔗 Attaching to Navigation Desktop container..."
 	@echo ""
-	docker compose exec nav-desktop /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		echo '🚀 Welcome to Navigation Desktop container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
@@ -141,24 +141,41 @@ attach: compose-check ## Attach to running Navigation Desktop container
 
 stop: compose-check ## Stop the Navigation Desktop container
 	@echo "$(BLUE)[INFO] Stopping Navigation Desktop container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker compose down; \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)";
+
+create_volume: compose-check ## Create the persistent home volume for Navigation Desktop
+	@echo "$(BLUE)[INFO] Creating persistent home volume for Navigation Desktop...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^nav_humble_desktop_home_volume$$"; then \
+		docker volume create nav_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: nav_humble_desktop_home_volume$(NC)"; \
 	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
+		echo "$(YELLOW)[INFO] Volume already exists: nav_humble_desktop_home_volume$(NC)"; \
 	fi
 
-clean: compose-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up Navigation Desktop resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	docker compose down -v --rmi all
-	@echo "$(GREEN)Cleanup complete!$(NC)"
+remove_volume: compose-check ## Remove the persistent home volume for Navigation Desktop
+	@echo "$(BLUE)[INFO] Removing persistent home volume for Navigation Desktop...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^nav_humble_desktop_home_volume$$"; then \
+		docker volume rm nav_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume removed: nav_humble_desktop_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume does not exist: nav_humble_desktop_home_volume$(NC)"; \
+	fi
+
+remove_container: compose-check ## Remove the Navigation Desktop container
+	@echo "$(BLUE)[INFO] Removing Navigation Desktop container...$(NC)"
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container removed: $(CONTAINER_NAME)$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Container does not exist: $(CONTAINER_NAME)$(NC)"; \
+	fi
 
 status: compose-check ## Show status of Navigation Desktop containers and volumes
 	@echo "$(BLUE)[INFO] Navigation Desktop status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Containers:$(NC)"
-	@docker compose ps -a || echo "No containers found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=nav_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"

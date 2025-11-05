@@ -18,7 +18,7 @@ XAUTH ?= /tmp/.docker.xauth
 IMAGE_NAME = ghcr.io/epflxplore/nav:humble-jetson
 CONTAINER_NAME = nav_humble_jetson
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR := $(abspath $(CURDIR)/..)
 CYCLONEDDS_CONFIG = $(HOME)/Documents/ERC_NAV/docker_humble_jetson/cyclonedx.xml
 PHOTOS_DIR = /home/xplore-nav/Documents/photos_competition
 
@@ -91,15 +91,15 @@ gpu-check: ## Check GPU availability and Jetson platform
 
 build: compose-check ## Build the Navigation Jetson Docker image
 	@echo "$(BLUE)[INFO] Building Navigation Jetson image...$(NC)"
-	docker compose build --progress=plain nav-jetson
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 build-quick: compose-check ## Build the Navigation Jetson Docker image (using cache)
 	@echo "$(BLUE)[INFO] Building Navigation Jetson image (using cache)...$(NC)"
-	docker compose build nav-jetson
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: compose-check x11-setup gpu-check ## Run Navigation Jetson container with GPU acceleration
 	@echo "$(BLUE)[INFO] Starting Navigation Jetson container...$(NC)"
-	docker compose --profile default up -it nav-jetson
+	docker compose --profile default up -d nav-jetson
 
 attach: compose-check ## Attach to running Navigation Jetson container
 	@echo "$(BLUE)[INFO] Attaching to Navigation Jetson container...$(NC)"
@@ -113,7 +113,7 @@ attach: compose-check ## Attach to running Navigation Jetson container
 	fi
 	@echo "🔗 Attaching to Navigation Jetson container..."
 	@echo ""
-	docker compose exec nav-jetson /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		source install/setup.bash; \
 		echo '🚀 Welcome to Navigation Jetson container!'; \
 		echo 'Environment configured with:'; \
@@ -126,42 +126,54 @@ attach: compose-check ## Attach to running Navigation Jetson container
 		echo ''; \
 		/bin/bash"
 
-wheels-control: compose-check x11-setup ## Launch wheels control stack (creates new container if needed)
+wheels-control: compose-check x11-setup ## Launch wheels control stack
 	@echo "$(BLUE)[INFO] Launching wheels control stack...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
 		echo "$(GREEN)[INFO] Using existing container$(NC)"; \
-		docker compose exec nav-jetson /bin/bash -c " \
+		docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
 			source src/docker_humble_jetson/attach.sh; \
 			ros2 launch wheels_control manual_stack.launch.py pub_urdf:=True"; \
 	else \
-		echo "$(YELLOW)[INFO] Starting new container for wheels control$(NC)"; \
-		docker compose run --rm nav-jetson /bin/bash -c " \
-			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			source src/docker_humble_jetson/attach.sh; \
-			ros2 launch wheels_control manual_stack.launch.py pub_urdf:=True"; \
+		echo "$(YELLOW)[INFO] Start the container first using 'make run'$(NC)"; \
 	fi
 
 stop: compose-check ## Stop the Navigation Jetson container
 	@echo "$(BLUE)[INFO] Stopping Navigation Jetson container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker compose down; \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; 
+
+create_volume: compose-check ## Create persistent Docker volume for Navigation Jetson
+	@echo "$(BLUE)[INFO] Creating persistent volume for Navigation Jetson...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^nav_humble_jetson_home_volume$$"; then \
+		docker volume create nav_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: nav_humble_jetson_home_volume$(NC)"; \
 	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
+		echo "$(YELLOW)[INFO] Volume 'nav_humble_jetson_home_volume' already exists$(NC)"; \
 	fi
 
-clean: compose-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up Navigation Jetson resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	docker compose down -v --rmi all
-	@echo "$(GREEN)Cleanup complete!$(NC)"
+remove_volume: compose-check ## Remove persistent Docker volume for Navigation Jetson
+	@echo "$(BLUE)[INFO] Removing persistent volume for Navigation Jetson...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^nav_humble_jetson_home_volume$$"; then \
+		docker volume rm nav_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume 'nav_humble_jetson_home_volume' removed$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume 'nav_humble_jetson_home_volume' not found$(NC)"; \
+	fi
+remove_container: compose-check ## Remove the Navigation Jetson container
+	@echo "$(BLUE)[INFO] Removing Navigation Jetson container...$(NC)"
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container '$(CONTAINER_NAME)' removed$(NC)";
+	else \
+		echo "$(YELLOW)[INFO] Container '$(CONTAINER_NAME)' not found$(NC)"; \
+	fi
 
 status: compose-check ## Show status of Navigation Jetson containers and volumes
 	@echo "$(BLUE)[INFO] Navigation Jetson status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Containers:$(NC)"
-	@docker compose ps -a || echo "No containers found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=nav_humble_jetson" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"

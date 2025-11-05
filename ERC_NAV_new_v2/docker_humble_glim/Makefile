@@ -1,7 +1,7 @@
 # ERC Navigation GLIM Jetson Docker Makefile
 # Provides convenient commands for managing the GLIM Jetson containers
 
-.PHONY: help build run attach stop clean compose-check x11-setup gpu-check
+.PHONY: help build run attach stop compose-check x11-setup gpu-check, status logs create_volume remove_volume remove_container
 
 # Default target
 .DEFAULT_GOAL := help
@@ -18,7 +18,7 @@ XAUTH ?= /tmp/.docker.xauth
 IMAGE_NAME = glim-humble-jetson
 CONTAINER_NAME = glim_humble_jetson
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR := $(abspath $(CURDIR)/..)
 
 # Export environment variables
 export XAUTH
@@ -99,15 +99,15 @@ gpu-check: ## Check GPU availability and Jetson platform
 
 build: compose-check ## Build the GLIM Jetson Docker image (optimized for Jetson)
 	@echo "$(BLUE)[INFO] Building GLIM Jetson image with fresh cache...$(NC)"
-	docker compose build --no-cache --progress=plain glim-jetson
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..	
 
 build-quick: compose-check ## Build the GLIM Jetson Docker image (using cache)
 	@echo "$(BLUE)[INFO] Building GLIM Jetson image (using cache)...$(NC)"
-	docker compose build --progress=plain glim-jetson
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: compose-check x11-setup gpu-check ## Run GLIM Jetson container with full GPU acceleration
 	@echo "$(BLUE)[INFO] Starting GLIM Jetson container with GPU acceleration...$(NC)"
-	docker compose --profile default up -it glim-jetson
+	docker compose --profile default up -d glim-jetson
 
 attach: compose-check ## Attach to running GLIM Jetson container
 	@echo "$(BLUE)[INFO] Attaching to GLIM Jetson container...$(NC)"
@@ -121,7 +121,7 @@ attach: compose-check ## Attach to running GLIM Jetson container
 	fi
 	@echo "🔗 Attaching to GLIM Jetson container..."
 	@echo ""
-	docker compose exec glim-jetson /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		source install/setup.bash; \
 		echo '🚀 Welcome to GLIM Jetson container!'; \
 		echo 'Environment configured with:'; \
@@ -136,24 +136,42 @@ attach: compose-check ## Attach to running GLIM Jetson container
 
 stop: compose-check ## Stop the GLIM Jetson container
 	@echo "$(BLUE)[INFO] Stopping GLIM Jetson container...$(NC)"
-	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker compose down; \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)";
+
+create_volume: compose-check ## Create persistent Docker volume for GLIM Jetson
+	@echo "$(BLUE)[INFO] Creating persistent volume for GLIM Jetson...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^nav_humble_jetson_home_volume$$"; then \
+		docker volume create nav_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: nav_humble_jetson_home_volume$(NC)"; \
 	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
+		echo "$(YELLOW)[INFO] Volume 'nav_humble_jetson_home_volume' already exists$(NC)"; \
+	fi
+	@echo "$(GREEN)[SUCCESS] Persistent volume created$(NC)"
+
+remove_volume: compose-check ## Remove persistent Docker volume for GLIM Jetson
+	@echo "$(BLUE)[INFO] Removing persistent volume for GLIM Jetson...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^nav_humble_jetson_home_volume$$"; then \
+		docker volume rm nav_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume 'nav_humble_jetson_home_volume' removed$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume 'nav_humble_jetson_home_volume' not found$(NC)"; \
 	fi
 
-clean: compose-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up GLIM Jetson resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	docker compose down -v --rmi all
-	@echo "$(GREEN)Cleanup complete!$(NC)"
+remove_container: compose-check ## Remove the GLIM Jetson container
+	@echo "$(BLUE)[INFO] Removing GLIM Jetson container...$(NC)"
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container '$(CONTAINER_NAME)' removed$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Container '$(CONTAINER_NAME)' not found$(NC)"; \
+	fi
 
 status: compose-check ## Show status of GLIM Jetson containers and volumes
 	@echo "$(BLUE)[INFO] GLIM Jetson status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Containers:$(NC)"
-	@docker compose ps -a || echo "No containers found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=nav_humble_jetson" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
