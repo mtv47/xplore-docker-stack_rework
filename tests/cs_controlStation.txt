@@ -205,4 +205,56 @@ Port Status:
 Checking web interface ports...
   ❌ Port 3000 (Main Interface) - INACTIVE
   ❌ Port 9090 (ROSBridge) - INACTIVE
+mtv@x570:~/Documents/GitHub/ERC_CS_ControlStation-humble/docker_humble_desktop_new$ sudo make create_volume 
+[sudo] password for mtv: 
+[INFO] Creating persistent home volume for Control Station... 
+cs_humble_desktop_home_volume
+[SUCCESS] Volume created: cs_humble_desktop_home_volume 
+mtv@x570:~/Documents/GitHub/ERC_CS_ControlStation-humble/docker_humble_desktop_new$ sudo make run-cs 
+Preparing Xauthority data...
+Done.
+
+Verifying file contents:
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+Permissions:
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+[INFO] Starting Control Station container (Linux mode)... 
+docker compose --profile default up -d cs
+[+] Running 1/1
+ ✔ Container cs_humble_desktop  Started                                                                                                                                                                                                            0.1s 
+[SUCCESS] Control Station started in Linux mode 
+Use 'make attach' to connect to the container 
+[INFO] Launching Control Station stack... 
+docker exec -it cs_humble_desktop /bin/bash ./launch.sh
+./launch.sh: line 3: install/setup.bash: No such file or directory
+Traceback (most recent call last):
+  File "/opt/ros/humble/bin/ros2", line 33, in <module>
+    sys.exit(load_entry_point('ros2cli==0.18.14', 'console_scripts', 'ros2')())
+  File "/opt/ros/humble/bin/ros2", line 25, in importlib_load_entry_point
+    return next(matches).load()
+  File "/usr/lib/python3.10/importlib/metadata/__init__.py", line 171, in load
+    module = import_module(match.group('module'))
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/opt/ros/humble/lib/python3.10/site-packages/ros2cli/cli.py", line 22, in <module>
+    from rclpy.executors import ExternalShutdownException
+ModuleNotFoundError: No module named 'rclpy'
+npm error code ENOENT
+npm error syscall open
+npm error path /home/xplore/dev_ws/src/frontend/package.json
+npm error errno -2
+npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/home/xplore/dev_ws/src/frontend/package.json'
+npm error enoent This is related to npm not being able to find a file.
+npm error enoent
+
+npm error A complete log of this run can be found in: /home/xplore/.npm/_logs/2025-11-05T09_26_07_173Z-debug-0.log
+make: *** [Makefile:212: launch-cs] Error 254
 mtv@x570:~/Documents/GitHub/ERC_CS_ControlStation-humble/docker_humble_desktop_new$ 
