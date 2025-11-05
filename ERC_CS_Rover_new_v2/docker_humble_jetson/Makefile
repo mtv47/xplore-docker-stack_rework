@@ -1,7 +1,7 @@
 # Rover Jetson Docker Makefile
 # Provides convenient commands for managing the Rover Jetson containers using Docker Compose
 
-.PHONY: help build build-quick run run-rover attach stop stop-rover stop-cameras clean docker-check x11-setup status logs
+.PHONY: help build build-quick run run-rover attach stop stop-rover stop-cameras docker-check x11-setup status logs create_volume remove_volume
 
 # Default target
 .DEFAULT_GOAL := help
@@ -131,17 +131,6 @@ stop-cameras: docker-check ## Stop the camera container
 	@echo "$(BLUE)[INFO] Stopping camera container...$(NC)"
 	docker stop $(CAMERA_CONTAINER_NAME) >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
-
-clean: docker-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up Rover Jetson resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@docker compose down --volumes 2>/dev/null || true
-	@if docker volume ls -q | grep -q "rover_humble_jetson_home_volume"; then \
-		docker volume rm rover_humble_jetson_home_volume; \
-	fi
-	@if docker images -q $(IMAGE_NAME) | head -1 | xargs -r docker rmi; then \
-		echo "$(GREEN)Cleanup complete!$(NC)"; \
-	fi
 
 create_volume: docker-check ## Create the persistent home volume for Rover Jetson
 	@echo "$(BLUE)[INFO] Creating persistent home volume for Rover Jetson...$(NC)"
