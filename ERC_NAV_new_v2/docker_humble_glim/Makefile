@@ -99,15 +99,16 @@ gpu-check: ## Check GPU availability and Jetson platform
 
 build: compose-check ## Build the GLIM Jetson Docker image (optimized for Jetson)
 	@echo "$(BLUE)[INFO] Building GLIM Jetson image with fresh cache...$(NC)"
-	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..	
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile.glim ..	
 
 build-quick: compose-check ## Build the GLIM Jetson Docker image (using cache)
 	@echo "$(BLUE)[INFO] Building GLIM Jetson image (using cache)...$(NC)"
-	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile.glim ..
 
 run: compose-check x11-setup gpu-check ## Run GLIM Jetson container with full GPU acceleration
 	@echo "$(BLUE)[INFO] Starting GLIM Jetson container with GPU acceleration...$(NC)"
 	docker compose --profile default up -d glim-jetson
+	@echo "$(GREEN)[SUCCESS] GLIM Jetson container started with GPU acceleration$(NC)"
 
 attach: compose-check ## Attach to running GLIM Jetson container
 	@echo "$(BLUE)[INFO] Attaching to GLIM Jetson container...$(NC)"
@@ -122,6 +123,9 @@ attach: compose-check ## Attach to running GLIM Jetson container
 	@echo "🔗 Attaching to GLIM Jetson container..."
 	@echo ""
 	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
+		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
+		export DISPLAY=unix$$DISPLAY; \
+		export QT_X11_NO_MITSHM=1; \
 		source install/setup.bash; \
 		echo '🚀 Welcome to GLIM Jetson container!'; \
 		echo 'Environment configured with:'; \

@@ -101,10 +101,12 @@ run: run-gpu ## Default run with GPU acceleration (alias for run-gpu)
 run-gpu: compose-check x11-setup gpu-check ## Run Navigation Desktop container with NVIDIA GPU acceleration
 	@echo "$(BLUE)[INFO] Starting Navigation Desktop container with GPU acceleration...$(NC)"
 	docker compose --profile gpu up -d nav-desktop-gpu
+	@echo "$(GREEN)[SUCCESS] Navigation Desktop container started with GPU acceleration$(NC)"
 
 run-no-gpu: compose-check x11-setup ## Run Navigation Desktop container without GPU (compatibility mode)
 	@echo "$(BLUE)[INFO] Starting Navigation Desktop container in compatibility mode (no GPU)...$(NC)"
 	docker compose --profile default up -d nav-desktop
+	@echo "$(GREEN)[SUCCESS] Navigation Desktop container started$(NC)"
 
 attach: compose-check ## Attach to running Navigation Desktop container
 	@echo "$(BLUE)[INFO] Attaching to Navigation Desktop container...$(NC)"
@@ -120,15 +122,6 @@ attach: compose-check ## Attach to running Navigation Desktop container
 	@echo "🔗 Attaching to Navigation Desktop container..."
 	@echo ""
 	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
-		echo '🚀 Welcome to Navigation Desktop container!'; \
-		echo 'Environment configured with:'; \
-		echo '  - ROS 2 Humble'; \
-		echo '  - Navigation stack'; \
-		echo '  - SLAM capabilities'; \
-		echo '  - LiDAR integration'; \
-		echo '  - Real-time mapping'; \
-		echo ''; \
-		/bin/bash" || docker compose exec nav-desktop-gpu /bin/bash -c " \
 		echo '🚀 Welcome to Navigation Desktop container!'; \
 		echo 'Environment configured with:'; \
 		echo '  - ROS 2 Humble'; \
