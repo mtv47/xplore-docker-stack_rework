@@ -1,7 +1,7 @@
 # HD Desktop Docker Makefile
 # Provides convenient commands for managing the HD (Heavy Duty) Desktop containers using Docker Compose
 
-.PHONY: help build run run-no-gpu attach stop clean docker-check x11-setup status logs gpu-check
+.PHONY: help build run run-no-gpu attach stop docker-check x11-setup status logs gpu-check, create_volume remove_volume remove_container
 
 # Default target
 .DEFAULT_GOAL := help
@@ -18,7 +18,7 @@ XAUTH ?= /tmp/.docker.xauth
 IMAGE_NAME = ghcr.io/epflxplore/hd:humble-desktop
 CONTAINER_NAME = hd_humble_desktop
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR := $(abspath $(CURDIR)/..)
 
 # Export environment variables for Docker Compose
 export XAUTH
@@ -115,25 +115,41 @@ attach: docker-check ## Attach to running HD Desktop container
 
 stop: docker-check ## Stop the HD Desktop container
 	@echo "$(BLUE)[INFO] Stopping HD Desktop container...$(NC)"
-	docker compose down
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
-clean: docker-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up HD Desktop resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@docker compose down --volumes 2>/dev/null || true
-	@if docker volume ls -q | grep -q "hd_humble_desktop_home_volume"; then \
-		docker volume rm hd_humble_desktop_home_volume; \
+create_volume: docker-check ## Create the persistent home volume for HD Desktop
+	@echo "$(BLUE)[INFO] Creating persistent home volume for HD Desktop...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^hd_humble_desktop_home_volume$$"; then \
+		docker volume create hd_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: hd_humble_desktop_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume already exists: hd_humble_desktop_home_volume$(NC)"; \
 	fi
-	@if docker images -q $(IMAGE_NAME) | head -1 | xargs -r docker rmi; then \
-		echo "$(GREEN)Cleanup complete!$(NC)"; \
+
+remove_volume: docker-check ## Remove the persistent home volume for HD Desktop
+	@echo "$(BLUE)[INFO] Removing persistent home volume for HD Desktop...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^hd_humble_desktop_home_volume$$"; then \
+		docker volume rm hd_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume removed: hd_humble_desktop_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume does not exist: hd_humble_desktop_home_volume$(NC)"; \
+	fi
+
+remove_container: docker-check ## Remove the HD Desktop container
+	@echo "$(BLUE)[INFO] Removing HD Desktop container...$(NC)"
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container removed: $(CONTAINER_NAME)$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Container does not exist: $(CONTAINER_NAME)$(NC)"; \
 	fi
 
 status: docker-check ## Show status of HD Desktop containers and volumes
 	@echo "$(BLUE)[INFO] HD Desktop status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Docker Compose Services:$(NC)"
-	@docker compose ps 2>/dev/null || echo "No compose services found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=hd_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"

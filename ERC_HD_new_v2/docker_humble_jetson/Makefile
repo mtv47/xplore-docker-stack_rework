@@ -19,7 +19,7 @@ IMAGE_NAME = ghcr.io/epflxplore/hd:humble-jetson-test
 CONTAINER_NAME = hd_humble
 MOTORS_CONTAINER_NAME = hd_humble_motors
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR = $(abspath $(CURDIR)/..)
 CYCLONEDDS_CONFIG = $(PWD)/cyclonedds.xml
 
 # Export environment variables for Docker Compose
@@ -144,35 +144,60 @@ attach: docker-check ## Attach to running HD Jetson container
 
 stop: docker-check ## Stop the main HD Jetson container
 	@echo "$(BLUE)[INFO] Stopping HD Jetson container...$(NC)"
-	docker compose down
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] Container(s) stopped$(NC)"
 
 stop-hd-stack: docker-check ## Stop HD stack container
 	@echo "$(BLUE)[INFO] Stopping HD Stack container...$(NC)"
-	docker compose stop hd-jetson-stack
+	docker stop $(CONTAINER_NAME)_stack >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] HD Stack container stopped$(NC)"
 
 stop-motors: docker-check ## Stop the motors container
 	@echo "$(BLUE)[INFO] Stopping HD Motors container...$(NC)"
-	docker compose stop hd_humble
+	docker stop $(MOTORS_CONTAINER_NAME) >/dev/null 2>&1 || true;
 	@echo "$(GREEN)[SUCCESS] Motors container stopped$(NC)"
 
-clean: docker-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up HD Jetson resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@docker compose down --volumes 2>/dev/null || true
-	@if docker volume ls -q | grep -q "hd_humble_jetson_home_volume"; then \
-		docker volume rm hd_humble_jetson_home_volume; \
+create_volume: docker-check ## Create the persistent home volume for HD Jetson
+	@echo "$(BLUE)[INFO] Creating persistent home volume for HD Jetson...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^hd_humble_jetson_home_volume$$"; then \
+		docker volume create hd_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: hd_humble_jetson_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume already exists: hd_humble_jetson_home_volume$(NC)"; \
 	fi
-	@if docker images -q $(IMAGE_NAME) | head -1 | xargs -r docker rmi; then \
-		echo "$(GREEN)Cleanup complete!$(NC)"; \
+
+remove_volume: docker-check ## Remove the persistent home volume for HD Jetson
+	@echo "$(BLUE)[INFO] Removing persistent home volume for HD Jetson...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^hd_humble_jetson_home_volume$$"; then \
+		docker volume rm hd_humble_jetson_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume removed: hd_humble_jetson_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume does not exist: hd_humble_jetson_home_volume$(NC)"; \
+	fi
+
+remove_container: docker-check ## Remove the HD Jetson container
+	@echo "$(BLUE)[INFO] Removing HD Jetson container...$(NC)"
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container removed: $(CONTAINER_NAME)$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Container does not exist: $(CONTAINER_NAME)$(NC)"; \
+	fi
+
+remove_container_motors: docker-check ## Remove the HD Jetson motors container
+	@echo "$(BLUE)[INFO] Removing HD Jetson motors container...$(NC)"
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(MOTORS_CONTAINER_NAME)$$"; then \
+		docker rm -f $(MOTORS_CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container removed: $(MOTORS_CONTAINER_NAME)$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Container does not exist: $(MOTORS_CONTAINER_NAME)$(NC)"; \
 	fi
 
 status: docker-check ## Show status of HD Jetson containers and volumes
 	@echo "$(BLUE)[INFO] HD Jetson status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Docker Compose Services:$(NC)"
-	@docker compose ps 2>/dev/null || echo "No compose services found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=hd_humble_jetson" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
@@ -180,8 +205,10 @@ status: docker-check ## Show status of HD Jetson containers and volumes
 	@echo "$(GREEN)Images:$(NC)"
 	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" || echo "No images found"
 
-logs: docker-check ## Show logs from HD Jetson containers
-	@echo "$(BLUE)[INFO] Showing HD Jetson container logs...$(NC)"
-	@echo "Available services: hd-jetson, hd-jetson-stack, hd-jetson-motors"
-	@echo "Use: docker compose logs -f [service-name]"
-	@docker compose logs --tail=50
+logs: docker-check ## Show logs from the HD Desktop container
+	@echo "$(BLUE)[INFO] Showing HD Desktop container logs...$(NC)"
+	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker compose logs -f; \
+	else \
+		echo "$(YELLOW)[INFO] No containers are running$(NC)"; \
+	fi
