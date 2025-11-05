@@ -1,0 +1,152 @@
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo docker ps -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+8255ff9b6cb0   bridge    bridge    local
+acd35916b4bc   host      host      local
+0d4eeca6054c   none      null      local
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo docker volume ls
+DRIVER    VOLUME NAME
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make help
+Avionics ROS Desktop Docker Commands 
+
+Available commands: 
+  help              Show this help message
+  docker-check      Check if Docker is running
+  canfd-setup       Setup CAN-FD interface (if script exists)
+  build             Build the Avionics ROS Desktop Docker image (verbose output)
+  build-quick       Build the Avionics ROS Desktop Docker image (fast, minimal output)
+  run               Run Avionics ROS Desktop container
+  attach            Attach to running Avionics ROS Desktop container
+  stop              Stop the Avionics ROS Desktop container
+  create_volume     Create the persistent home volume for Avionics ROS Desktop
+  remove_volume     Remove the persistent home volume for Avionics ROS Desktop
+  remove_container   Remove the Avionics ROS Desktop container
+  status            Show status of Avionics ROS Desktop containers and volumes
+  logs              Show logs from the Avionics ROS Desktop container
+
+Examples: 
+  make build            # Build the Avionics ROS image
+  make run              # Run container (detached)
+  make attach           # Attach to running container
+  make stop             # Stop the container
+
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make run
+[INFO] Preparing Xauthority data... 
+xauth:  file /tmp/.docker.xauth does not exist
+[SUCCESS] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+
+[INFO] Setting up CAN-FD interface... 
+[WARNING] CAN-FD script not found at /home/mtv/Documents/GitHub/Avionics_ROS-master/src/../canfd.sh 
+[INFO] Skipping CAN-FD setup. You may need to configure CAN manually. 
+[INFO] Starting Avionics ROS Desktop container... 
+UID=$(id -u) GID=$(id -g) XAUTH=/tmp/.docker.xauth PARENT_DIR=/home/mtv/Documents/GitHub/Avionics_ROS-master/src DISPLAY=$DISPLAY \
+docker compose up -d avionics-desktop
+external volume "elec_humble_desktop_home_volume" not found
+make: *** [Makefile:89: run] Error 1
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make create_volume 
+[INFO] Creating persistent home volume for Avionics ROS Desktop... 
+elec_humble_desktop_home_volume
+[SUCCESS] Volume created: elec_humble_desktop_home_volume 
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make run
+[INFO] Preparing Xauthority data... 
+[SUCCESS] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+
+[INFO] Setting up CAN-FD interface... 
+[WARNING] CAN-FD script not found at /home/mtv/Documents/GitHub/Avionics_ROS-master/src/../canfd.sh 
+[INFO] Skipping CAN-FD setup. You may need to configure CAN manually. 
+[INFO] Starting Avionics ROS Desktop container... 
+UID=$(id -u) GID=$(id -g) XAUTH=/tmp/.docker.xauth PARENT_DIR=/home/mtv/Documents/GitHub/Avionics_ROS-master/src DISPLAY=$DISPLAY \
+docker compose up -d avionics-desktop
+[+] Running 1/1
+ ✔ Container elec_humble_desktop  Started                                                                                                                                                                                                          0.2s 
+[SUCCESS] Container started. Use 'make attach' to connect. 
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make status
+[INFO] Avionics ROS Desktop status: 
+
+Containers: 
+NAMES                 STATUS          PORTS
+elec_humble_desktop   Up 42 seconds   
+
+Volumes: 
+VOLUME NAME                       DRIVER
+elec_humble_desktop_home_volume   local
+
+Images: 
+REPOSITORY                TAG              SIZE      CREATED AT
+ghcr.io/epflxplore/elec   humble-desktop   7.92GB    2025-11-05 00:08:23 +0100 CET
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+8255ff9b6cb0   bridge    bridge    local
+acd35916b4bc   host      host      local
+0d4eeca6054c   none      null      local
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make attach 
+[INFO] Attaching to Avionics ROS Desktop container... 
+🔗 Attaching to Avionics ROS Desktop container...
+
+UID=$(id -u) GID=$(id -g) XAUTH=/tmp/.docker.xauth PARENT_DIR=/home/mtv/Documents/GitHub/Avionics_ROS-master/src DISPLAY=$DISPLAY \
+docker exec -it elec_humble_desktop /bin/bash -c " \
+	export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
+	export DISPLAY=unix\$DISPLAY; \
+	export QT_X11_NO_MITSHM=1; \
+	export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
+	source install/setup.bash; \
+	echo '🚀 Welcome to Avionics ROS Desktop container!'; \
+	echo 'Environment configured with:'; \
+	echo '  - ROS 2 Humble'; \
+	echo '  - CycloneDDS middleware'; \
+	echo '  - X11 forwarding'; \
+	echo '  - CAN-FD and serial communication'; \
+	echo '  - Dialout group access'; \
+	echo ''; \
+	/bin/bash"
+/bin/bash: line 1: install/setup.bash: No such file or directory
+🚀 Welcome to Avionics ROS Desktop container!
+Environment configured with:
+  - ROS 2 Humble
+  - CycloneDDS middleware
+  - X11 forwarding
+  - CAN-FD and serial communication
+  - Dialout group access
+
+root@x570:/home/xplore/dev_ws# exit
+exit
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make stop
+[INFO] Stopping Avionics ROS Desktop container... 
+docker stop elec_humble_desktop >/dev/null 2>&1 || true;
+[SUCCESS] Container stopped 
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make remove_container 
+[INFO] Removing Avionics ROS Desktop container... 
+elec_humble_desktop
+[SUCCESS] Container removed: elec_humble_desktop 
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make remove_volume 
+[INFO] Removing persistent home volume for Avionics ROS Desktop... 
+elec_humble_desktop_home_volume
+[SUCCESS] Volume removed: elec_humble_desktop_home_volume 
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ sudo make status
+[INFO] Avionics ROS Desktop status: 
+
+Containers: 
+NAMES     STATUS    PORTS
+
+Volumes: 
+VOLUME NAME   DRIVER
+
+Images: 
+REPOSITORY                TAG              SIZE      CREATED AT
+ghcr.io/epflxplore/elec   humble-desktop   7.92GB    2025-11-05 00:08:23 +0100 CET
+mtv@x570:~/Documents/GitHub/Avionics_ROS-master/src/docker_humble_desktop_new$ 
