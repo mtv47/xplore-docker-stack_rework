@@ -73,7 +73,6 @@ services:
       - /run/jtop.sock:/run/jtop.sock
       - ${PARENT_DIR}:/home/xplore/dev_ws/src
       - hd_humble_jetson_home_volume:/home/xplore
-      - ./cyclonedds.xml:/home/xplore/cyclonedds.xml:ro
     command: >
       /bin/bash -c "
         sudo chown -R xplore:xplore /home/xplore;
