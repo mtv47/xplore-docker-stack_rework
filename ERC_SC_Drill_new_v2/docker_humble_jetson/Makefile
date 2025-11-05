@@ -1,7 +1,7 @@
 # ERC Science & Core Drill Jetson Docker Compose Makefile
 # Provides convenient commands for managing the SC Drill Jetson containers
 
-.PHONY: help build build-quick run run-gpu attach stop docker-check compose-check x11-setup gpu-check run-drill, \
+.PHONY: help build build-quick run attach stop compose-check x11-setup run-drill, \
 	status logs create_volume remove_volume remove_container
 
 # Default target
@@ -21,7 +21,6 @@ CONTAINER_NAME = sc_humble_jetson
 USERNAME = xplore
 PARENT_DIR := $(abspath $(CURDIR)/..)
 PHOTOS_DIR = /home/xplore-hd/Documents/photos_competition
-COMPOSE_FILE = compose.yaml
 
 # Export environment variables
 export XAUTH
@@ -43,13 +42,7 @@ help: ## Show this help message
 	@echo "  make stop         # Stop the container"
 	@echo ""
 
-docker-check: ## Check if Docker is running
-	@if ! docker info > /dev/null 2>&1; then \
-		echo "$(RED)[ERROR] Docker is not running. Please start Docker and try again.$(NC)"; \
-		exit 1; \
-	fi
-
-compose-check: docker-check ## Check if Docker Compose is available
+compose-check: ## Check if Docker Compose is available
 	@if ! docker compose version > /dev/null 2>&1; then \
 		echo "$(RED)[ERROR] Docker Compose is not available. Please install Docker Compose and try again.$(NC)"; \
 		exit 1; \
@@ -77,15 +70,6 @@ x11-setup: ## Setup X11 forwarding for GUI applications
 	@echo "$(BLUE)[INFO] Permissions:$(NC)"
 	@ls -FAlh $(XAUTH)
 
-gpu-check: ## Check GPU availability for potential GPU acceleration
-	@echo "$(BLUE)[INFO] Checking GPU availability...$(NC)"
-	@if command -v nvidia-smi > /dev/null 2>&1; then \
-		echo "$(GREEN)[INFO] NVIDIA GPU detected:$(NC)"; \
-		nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader,nounits 2>/dev/null || echo "$(YELLOW)[WARNING] Could not query GPU details$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] No NVIDIA GPU detected$(NC)"; \
-	fi
-
 build: compose-check ## Build the SC Drill Jetson Docker image (with cache refresh)
 	@echo "$(BLUE)[INFO] Building SC Drill Jetson image with fresh cache...$(NC)"
 	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
@@ -97,10 +81,6 @@ build-quick: compose-check ## Build the SC Drill Jetson Docker image (using cach
 run: compose-check x11-setup ## Run SC Drill Jetson container (interactive)
 	@echo "$(BLUE)[INFO] Starting SC Drill Jetson container...$(NC)"
 	docker compose --profile default up -d sc-drill
-
-run-gpu: compose-check x11-setup gpu-check ## Run SC Drill Jetson container with GPU acceleration
-	@echo "$(BLUE)[INFO] Starting SC Drill Jetson container with GPU support...$(NC)"
-	docker compose --profile gpu up -d sc-drill-gpu
 
 run-drill: compose-check x11-setup ## Start SC Drill stack automatically (production mode)
 	@echo "$(BLUE)[INFO] Starting SC Drill Jetson stack...$(NC)"
@@ -186,7 +166,7 @@ status: compose-check ## Show status of SC Drill Jetson containers and volumes
 	@echo "$(BLUE)[INFO] SC Drill Jetson status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Containers:$(NC)"
-	@docker compose -f $(COMPOSE_FILE) ps -a 2>/dev/null || echo "No containers found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=sc_humble_jetson" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
@@ -197,7 +177,7 @@ status: compose-check ## Show status of SC Drill Jetson containers and volumes
 logs: compose-check ## Show logs from the SC Drill Jetson container
 	@echo "$(BLUE)[INFO] Showing SC Drill Jetson container logs...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker compose -f $(COMPOSE_FILE) logs -f sc-drill; \
+		docker compose logs -f; \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi

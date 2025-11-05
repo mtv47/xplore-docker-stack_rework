@@ -1,7 +1,7 @@
 # ERC Science & Core Drill Desktop Docker Compose Makefile
 # Provides convenient commands for managing the SC Drill Desktop containers
 
-.PHONY: help build run attach stop docker-check compose-check x11-setup gpu-check, \
+.PHONY: help build run attach stop compose-check x11-setup, \
 	status logs create_volume remove_volume
 
 # Default target
@@ -20,7 +20,6 @@ IMAGE_NAME = ghcr.io/epflxplore/sc:humble-desktop
 CONTAINER_NAME = sc_humble_desktop
 USERNAME = xplore
 PARENT_DIR := $(abspath $(CURDIR)/..)
-COMPOSE_FILE = compose.yaml
 
 # Export environment variables
 export XAUTH
@@ -36,18 +35,11 @@ help: ## Show this help message
 	@echo "$(BLUE)Examples:$(NC)"
 	@echo "  make build       # Build the SC Drill Desktop image"
 	@echo "  make run         # Run interactive container"
-	@echo "  make run-gpu     # Run with GPU acceleration"
 	@echo "  make attach      # Attach to running container"
 	@echo "  make stop        # Stop the container"
 	@echo ""
 
-docker-check: ## Check if Docker is running
-	@if ! docker info > /dev/null 2>&1; then \
-		echo "$(RED)[ERROR] Docker is not running. Please start Docker and try again.$(NC)"; \
-		exit 1; \
-	fi
-
-compose-check: docker-check ## Check if Docker Compose is available
+compose-check: ## Check if Docker Compose is available
 	@if ! docker compose version > /dev/null 2>&1; then \
 		echo "$(RED)[ERROR] Docker Compose is not available. Please install Docker Compose and try again.$(NC)"; \
 		exit 1; \
@@ -75,15 +67,6 @@ x11-setup: ## Setup X11 forwarding for GUI applications
 	@echo "$(BLUE)[INFO] Permissions:$(NC)"
 	@ls -FAlh $(XAUTH)
 
-gpu-check: ## Check GPU availability for potential GPU acceleration
-	@echo "$(BLUE)[INFO] Checking GPU availability...$(NC)"
-	@if command -v nvidia-smi > /dev/null 2>&1; then \
-		echo "$(GREEN)[INFO] NVIDIA GPU detected:$(NC)"; \
-		nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader,nounits 2>/dev/null || echo "$(YELLOW)[WARNING] Could not query GPU details$(NC)"; \
-	else \
-		echo "$(YELLOW)[INFO] No NVIDIA GPU detected$(NC)"; \
-	fi
-
 build: compose-check ## Build the SC Drill Desktop Docker image (with cache refresh)
 	@echo "$(BLUE)[INFO] Building SC Drill Desktop image with fresh cache...$(NC)"
 	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
@@ -95,10 +78,6 @@ build-quick: compose-check ## Build the SC Drill Desktop Docker image (using cac
 run: compose-check x11-setup ## Run SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Starting SC Drill Desktop container...$(NC)"
 	docker compose --profile default up -d sc-drill
-
-run-gpu: compose-check x11-setup gpu-check ## Run SC Drill Desktop container with GPU acceleration
-	@echo "$(BLUE)[INFO] Starting SC Drill Desktop container with GPU support...$(NC)"
-	docker compose --profile gpu up -d sc-drill-gpu
 
 attach: compose-check ## Attach to running SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Attaching to SC Drill Desktop container...$(NC)"
@@ -165,7 +144,7 @@ status: compose-check ## Show status of SC Drill Desktop containers and volumes
 	@echo "$(BLUE)[INFO] SC Drill Desktop status:$(NC)"
 	@echo ""
 	@echo "$(GREEN)Containers:$(NC)"
-	@docker compose -f $(COMPOSE_FILE) ps -a 2>/dev/null || echo "No containers found"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers found"
 	@echo ""
 	@echo "$(GREEN)Volumes:$(NC)"
 	@docker volume ls --filter "name=sc_humble_desktop" --format "table {{.Name}}\t{{.Driver}}" || echo "No volumes found"
@@ -176,7 +155,7 @@ status: compose-check ## Show status of SC Drill Desktop containers and volumes
 logs: compose-check ## Show logs from the SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Showing SC Drill Desktop container logs...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		docker compose -f $(COMPOSE_FILE) logs -f sc-drill; \
+		docker compose logs -f; \
 	else \
 		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
 	fi
