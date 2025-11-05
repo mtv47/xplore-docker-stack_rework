@@ -1,0 +1,137 @@
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev$ cd docker_humble_desktop_news/
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo docker ps -a
+[sudo] password for mtv: 
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+8255ff9b6cb0   bridge    bridge    local
+acd35916b4bc   host      host      local
+0d4eeca6054c   none      null      local
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo docker volume ls
+DRIVER    VOLUME NAME
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make help
+ERC Navigation Desktop Docker Commands 
+
+Available commands: 
+  help              Show this help message
+  compose-check     Check if Docker Compose is available
+  gpu-check         Check GPU availability and NVIDIA runtime
+  build             Build the Navigation Desktop Docker image (with cache refresh)
+  build-quick       Build the Navigation Desktop Docker image (using cache)
+  run               Default run with GPU acceleration (alias for run-gpu)
+  run-gpu           Run Navigation Desktop container with NVIDIA GPU acceleration
+  run-no-gpu        Run Navigation Desktop container without GPU (compatibility mode)
+  attach            Attach to running Navigation Desktop container
+  stop              Stop the Navigation Desktop container
+  create_volume     Create the persistent home volume for Navigation Desktop
+  remove_volume     Remove the persistent home volume for Navigation Desktop
+  remove_container   Remove the Navigation Desktop container
+  status            Show status of Navigation Desktop containers and volumes
+  logs              Show logs from the Navigation Desktop container
+
+Examples: 
+  make build       # Build the Navigation Desktop image
+  make run-gpu     # Run with NVIDIA GPU acceleration
+  make run-no-gpu  # Run without GPU (compatibility mode)
+  make attach      # Attach to running container
+  make stop        # Stop the container
+
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make run-no-gpu
+[INFO] Preparing Xauthority data... 
+[INFO] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+[INFO] Starting Navigation Desktop container in compatibility mode (no GPU)... 
+docker compose --profile default up -d nav-desktop
+external volume "nav_humble_desktop_home_volume" not found
+make: *** [Makefile:108: run-no-gpu] Error 1
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make create_volume 
+[INFO] Creating persistent home volume for Navigation Desktop... 
+nav_humble_desktop_home_volume
+[SUCCESS] Volume created: nav_humble_desktop_home_volume 
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make run-no-gpu
+[INFO] Preparing Xauthority data... 
+[INFO] Done. 
+
+[INFO] Verifying file contents: 
+/tmp/.docker.xauth: X11 Xauthority data
+--> It should say "X11 Xauthority data".
+
+[INFO] Permissions: 
+-rw-r--r-- 1 root root 48 Nov  5 09:03 /tmp/.docker.xauth
+[INFO] Starting Navigation Desktop container in compatibility mode (no GPU)... 
+docker compose --profile default up -d nav-desktop
+[+] Running 1/1
+ ✔ Container nav_humble_desktop  Started                                                                                                                                                                                                           6.7s 
+[SUCCESS] Navigation Desktop container started 
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make status
+[INFO] Navigation Desktop status: 
+
+Containers: 
+NAMES                STATUS         PORTS
+nav_humble_desktop   Up 4 seconds   
+
+Volumes: 
+VOLUME NAME                      DRIVER
+nav_humble_desktop_home_volume   local
+
+Images: 
+REPOSITORY               TAG              SIZE      CREATED AT
+ghcr.io/epflxplore/nav   humble-desktop   17.4GB    2025-11-05 04:20:15 +0100 CET
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+8255ff9b6cb0   bridge    bridge    local
+acd35916b4bc   host      host      local
+0d4eeca6054c   none      null      local
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make attach 
+[INFO] Attaching to Navigation Desktop container... 
+🔗 Attaching to Navigation Desktop container...
+
+docker exec -it nav_humble_desktop /bin/bash -c " \
+	echo '🚀 Welcome to Navigation Desktop container!'; \
+	echo 'Environment configured with:'; \
+	echo '  - ROS 2 Humble'; \
+	echo '  - Navigation stack'; \
+	echo '  - SLAM capabilities'; \
+	echo '  - LiDAR integration'; \
+	echo '  - Real-time mapping'; \
+	echo ''; \
+	/bin/bash"
+🚀 Welcome to Navigation Desktop container!
+Environment configured with:
+  - ROS 2 Humble
+  - Navigation stack
+  - SLAM capabilities
+  - LiDAR integration
+  - Real-time mapping
+
+xplore@x570:~/dev_ws$ cd ..
+xplore@x570:~$ exit
+exit
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make remove_container 
+[INFO] Removing Navigation Desktop container... 
+nav_humble_desktop
+[SUCCESS] Container removed: nav_humble_desktop 
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make remove_volume 
+[INFO] Removing persistent home volume for Navigation Desktop... 
+nav_humble_desktop_home_volume
+[SUCCESS] Volume removed: nav_humble_desktop_home_volume 
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ sudo make status
+[INFO] Navigation Desktop status: 
+
+Containers: 
+NAMES     STATUS    PORTS
+
+Volumes: 
+VOLUME NAME   DRIVER
+
+Images: 
+REPOSITORY               TAG              SIZE      CREATED AT
+ghcr.io/epflxplore/nav   humble-desktop   17.4GB    2025-11-05 04:20:15 +0100 CET
+mtv@x570:~/Documents/GitHub/ERC_NAV-nav2_dev/docker_humble_desktop_news$ 
+
