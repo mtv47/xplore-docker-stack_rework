@@ -13,7 +13,7 @@ services:
     restart: "no"  # Equivalent to --rm behavior from docker run
     runtime: nvidia
     environment:
-      - DISPLAY=${DISPLAY}
+      - DISPLAY=unix${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=${XAUTH}
       - NVIDIA_VISIBLE_DEVICES=all

@@ -61,7 +61,7 @@ services:
       - render
       - input
     environment:
-      - DISPLAY=${DISPLAY}
+      - DISPLAY=unix${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=${XAUTH}
     volumes:

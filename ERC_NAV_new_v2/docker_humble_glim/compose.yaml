@@ -15,7 +15,7 @@ services:
     runtime: nvidia
     working_dir: /home/xplore/dev_ws/
     environment:
-      - DISPLAY=${DISPLAY}
+      - DISPLAY=unix${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=${XAUTH}
       - NVIDIA_VISIBLE_DEVICES=all
