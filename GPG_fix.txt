@@ -1,0 +1,18 @@
+How to fix: 
+1.579 W: http://packages.osrfoundation.org/gazebo/ubuntu-stable/dists/jammy/InRelease: 
+  Key is stored in legacy trusted.gpg keyring (/etc/apt/trusted.gpg), see the DEPRECATION section in apt-key(8) for details. 
+1.579 W: GPG error: http://packages.ros.org/ros2/ubuntu jammy InRelease: The following signatures were invalid: 
+  EXPKEYSIG F42ED6FBAB17C654 Open Robotics <info@osrfoundation.org> 
+1.579 E: The repository 'http://packages.ros.org/ros2/ubuntu jammy InRelease' is not signed.
+
+--->
+
+RUN echo 'Acquire::AllowInsecureRepositories "true";' > /etc/apt/apt.conf.d/99insecure && \
+    echo 'Acquire::AllowDowngradeToInsecureRepositories "true";' >> /etc/apt/apt.conf.d/99insecure && \
+    echo 'deb [trusted=yes] http://packages.ros.org/ros2/ubuntu jammy main' \
+      | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+RUN apt-get update && apt-get install -y curl gnupg && \
+    echo "deb http://ppa.launchpad.net/borglab/gtsam-release-4.1/ubuntu $(lsb_release -cs) main" \
+      | tee /etc/apt/sources.list.d/gtsam.list > /dev/null && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6F3EFCDE
