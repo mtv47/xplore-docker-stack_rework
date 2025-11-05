@@ -78,21 +78,18 @@ build-quick: docker-check ## Build the Rover Desktop Docker image (with cache fo
 run: docker-check x11-setup ## Run interactive Rover Desktop container
 	@echo "$(BLUE)[INFO] Starting Rover Desktop container...$(NC)"
 	docker compose --profile default up -d rover
-	@echo "rover" > .running_service
 	@echo "$(GREEN)[SUCCESS] Rover Desktop started$(NC)"
 	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 run-mac: docker-check x11-setup ## Run Rover Desktop container for Mac with network
 	@echo "$(BLUE)[INFO] Starting Rover Desktop container for Mac...$(NC)"
 	docker compose --profile mac up -d rover-mac
-	@echo "rover-mac" > .running_service
 	@echo "$(GREEN)[SUCCESS] Rover Desktop started in Mac mode$(NC)"
 	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
 run-cameras: docker-check x11-setup ## Run camera service
 	@echo "$(BLUE)[INFO] Starting camera service...$(NC)"
 	docker compose --profile cameras up -d rover-cameras
-	@echo "rover-cameras" > .running_service
 	@echo "$(GREEN)[SUCCESS] Camera service started$(NC)"
 	@echo "$(YELLOW)Use 'make attach' to connect to the container$(NC)"
 
@@ -106,11 +103,9 @@ attach: docker-check ## Attach to running Rover Desktop container
 		echo ""; \
 		exit 1; \
 	fi
-	@SERVICE=$$(cat .running_service 2>/dev/null || true); \
-	echo "🔗 Attaching to $$SERVICE Desktop container..."
+	@echo "🔗 Attaching to $$SERVICE Desktop container..."
 	@echo ""
-	@SERVICE=$$(cat .running_service 2>/dev/null || true); \
-	docker compose exec $$SERVICE /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \

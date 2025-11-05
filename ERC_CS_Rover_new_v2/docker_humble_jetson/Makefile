@@ -88,7 +88,7 @@ run-rover: docker-check x11-setup ## Run rover launch script (start or attach)
 	@echo "$(BLUE)[INFO] Starting/Attaching to Rover...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
 		echo "$(GREEN)Container $(CONTAINER_NAME) is already running. Attaching to it...$(NC)"; \
-		docker compose exec $(CONTAINER_NAME) /bin/bash -c " \
+		docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
 			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 			export DISPLAY=unix\$$DISPLAY; \
@@ -113,7 +113,7 @@ attach: docker-check ## Attach to running Rover Jetson container
 	fi
 	@echo "🔗 Attaching to Rover Jetson container..."
 	@echo ""
-	docker compose exec $(CONTAINER_NAME) /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \

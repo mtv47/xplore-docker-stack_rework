@@ -93,7 +93,7 @@ attach: docker-check ## Attach to running Avionics ROS Jetson container
 	fi
 	@echo "🔗 Attaching to Avionics ROS Jetson container..."
 	@echo ""
-	docker compose exec avionics-jetson /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \
@@ -153,7 +153,7 @@ launch-stack: ## Launch avionics stack in running container
 		echo "Start it first with: make run or make start-stack"; \
 		exit 1; \
 	fi
-	docker compose exec avionics-jetson /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		cd /home/$(USERNAME)/dev_ws; \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		source install/setup.bash; \

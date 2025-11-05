@@ -103,7 +103,7 @@ attach: docker-check ## Attach to running Avionics ROS Desktop container
 	@echo "🔗 Attaching to Avionics ROS Desktop container..."
 	@echo ""
 	UID=$$(id -u) GID=$$(id -g) XAUTH=$(XAUTH) PARENT_DIR=$(PARENT_DIR) DISPLAY=$$DISPLAY \
-	docker compose exec avionics-desktop /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
 		export DISPLAY=unix\$$DISPLAY; \
 		export QT_X11_NO_MITSHM=1; \

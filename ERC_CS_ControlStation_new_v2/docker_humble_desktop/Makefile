@@ -213,7 +213,7 @@ launch-cs: ## Launch Control Station stack in running container
 		echo "Start it first with: make run or make run-mac"; \
 		exit 1; \
 	fi
-	docker exec $(CONTAINER_NAME) /bin/bash -c " \
+	docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
 		cd /home/$(USERNAME)/dev_ws/src; \
 		source ../install/setup.bash 2>/dev/null || true; \
 		export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
