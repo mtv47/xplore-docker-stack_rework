@@ -27,7 +27,6 @@ services:
     command: >
       /bin/bash -c "
         sudo chown -R xplore:xplore /home/xplore;
-        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
         echo '🚀 Rover Desktop container ready!';
         echo 'Environment configured with:';
         echo '  - ROS 2 Humble';
@@ -67,7 +66,6 @@ services:
     command: >
       /bin/bash -c "
         sudo chown -R xplore:xplore /home/xplore;
-        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
         echo '🚀 Rover Desktop container ready (Mac mode)!';
         echo 'Environment configured with:';
         echo '  - ROS 2 Humble';

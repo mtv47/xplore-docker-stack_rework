@@ -20,7 +20,7 @@ CONTAINER_NAME = rover_humble_jetson
 CAMERA_CONTAINER_NAME = rover_humble_jetson_2
 USERNAME = xplore
 PARENT_DIR = $(abspath $(CURDIR)/..)
-JTOP_GID = $(shell getent group jtop | awk -F: '{print $$3}' 2>/dev/null || echo "")
+JTOP_GID = $(shell getent group jtop | awk -F: '{print $$3}' 2>/dev/null || echo "Failed for JTOP_GID")
 
 # Export environment variables for Docker Compose
 export XAUTH
@@ -87,15 +87,7 @@ run: docker-check x11-setup ## Run interactive Rover Jetson container
 run-rover: docker-check x11-setup ## Run rover launch script (start or attach)
 	@echo "$(BLUE)[INFO] Starting/Attaching to Rover...$(NC)"
 	@if docker ps --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
-		echo "$(GREEN)Container $(CONTAINER_NAME) is already running. Attaching to it...$(NC)"; \
-		docker exec -it $(CONTAINER_NAME) /bin/bash -c " \
-			sudo chown -R $(USERNAME):$(USERNAME) /home/$(USERNAME); \
-			export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp; \
-			export DISPLAY=unix\$$DISPLAY; \
-			export QT_X11_NO_MITSHM=1; \
-			export PYTHONPATH=/home/$(USERNAME)/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/$(USERNAME)/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages; \
-			source install/setup.bash; \
-			ros2 launch rover_pkg launch.py"; \
+		echo "$(YELLOW)Container $(CONTAINER_NAME) is already running. Remove it to start a new one. $(NC)"; \
 	else \
 		echo "$(GREEN)Container $(CONTAINER_NAME) is not running. Starting a new container...$(NC)"; \
 		docker compose --profile launch up rover-launch; \
@@ -137,8 +129,8 @@ stop-rover: stop ## Alias for stop (stop rover container)
 
 stop-cameras: docker-check ## Stop the camera container
 	@echo "$(BLUE)[INFO] Stopping camera container...$(NC)"
-	@echo "$(YELLOW)[INFO] Camera containers are managed by Docker Compose profiles$(NC)"
-	@echo "Use 'make stop' to stop all containers"
+	docker stop $(CAMERA_CONTAINER_NAME) >/dev/null 2>&1 || true;
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)"
 
 clean: docker-check ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up Rover Jetson resources...$(NC)"
