@@ -1,7 +1,8 @@
 # ERC Science & Core Drill Desktop Docker Compose Makefile
 # Provides convenient commands for managing the SC Drill Desktop containers
 
-.PHONY: help build run attach stop clean docker-check compose-check x11-setup gpu-check
+.PHONY: help build run attach stop docker-check compose-check x11-setup gpu-check, \
+	status logs create_volume remove_volume
 
 # Default target
 .DEFAULT_GOAL := help
@@ -18,7 +19,7 @@ XAUTH ?= /tmp/.docker.xauth
 IMAGE_NAME = ghcr.io/epflxplore/sc:humble-desktop
 CONTAINER_NAME = sc_humble_desktop
 USERNAME = xplore
-PARENT_DIR = $(shell dirname $(PWD))
+PARENT_DIR := $(abspath $(CURDIR)/..)
 COMPOSE_FILE = compose.yaml
 
 # Export environment variables
@@ -85,19 +86,19 @@ gpu-check: ## Check GPU availability for potential GPU acceleration
 
 build: compose-check ## Build the SC Drill Desktop Docker image (with cache refresh)
 	@echo "$(BLUE)[INFO] Building SC Drill Desktop image with fresh cache...$(NC)"
-	docker compose -f $(COMPOSE_FILE) build --pull --no-cache sc-drill
+	docker build --pull --no-cache --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 build-quick: compose-check ## Build the SC Drill Desktop Docker image (using cache)
 	@echo "$(BLUE)[INFO] Building SC Drill Desktop image (using cache)...$(NC)"
-	docker compose -f $(COMPOSE_FILE) build sc-drill
+	docker build --progress=plain -t $(IMAGE_NAME) -f Dockerfile ..
 
 run: compose-check x11-setup ## Run SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Starting SC Drill Desktop container...$(NC)"
-	docker compose -f $(COMPOSE_FILE) --profile default up -it sc-drill
+	docker compose --profile default up -d sc-drill
 
 run-gpu: compose-check x11-setup gpu-check ## Run SC Drill Desktop container with GPU acceleration
 	@echo "$(BLUE)[INFO] Starting SC Drill Desktop container with GPU support...$(NC)"
-	docker compose -f $(COMPOSE_FILE) --profile gpu up -it sc-drill-gpu
+	docker compose --profile gpu up -d sc-drill-gpu
 
 attach: compose-check ## Attach to running SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Attaching to SC Drill Desktop container...$(NC)"
@@ -130,21 +131,35 @@ attach: compose-check ## Attach to running SC Drill Desktop container
 
 stop: compose-check ## Stop the SC Drill Desktop container
 	@echo "$(BLUE)[INFO] Stopping SC Drill Desktop container...$(NC)"
-	@if [ "$$(docker inspect -f '{{.State.Running}}' $(CONTAINER_NAME) 2>/dev/null)" = "true" ]; then \
-		docker compose -f $(COMPOSE_FILE) down; \
-		echo "$(GREEN)[SUCCESS] Container stopped$(NC)"; \
+	docker stop $(CONTAINER_NAME) >/dev/null 2>&1 || true;
+	@echo "$(GREEN)[SUCCESS] Container stopped$(NC)";
+
+create_volume: compose-check ## Create the persistent home volume for SC Drill Desktop
+	@echo "$(BLUE)[INFO] Creating persistent home volume for SC Drill Desktop...$(NC)"
+	@if ! docker volume ls --format "{{.Name}}" | grep -q "^sc_humble_desktop_home_volume$$"; then \
+		docker volume create sc_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume created: sc_humble_desktop_home_volume$(NC)"; \
 	else \
-		echo "$(YELLOW)[INFO] Container is not running$(NC)"; \
+		echo "$(YELLOW)[INFO] Volume already exists: sc_humble_desktop_home_volume$(NC)"; \
 	fi
 
-clean: compose-check ## Clean up containers, volumes, and images
-	@echo "$(YELLOW)Cleaning up SC Drill Desktop resources...$(NC)"
-	@echo "This will remove containers, volumes, and images. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@docker compose -f $(COMPOSE_FILE) down -v --rmi all 2>/dev/null || true
-	@if docker volume ls -q | grep -q "sc_humble_desktop_home_volume"; then \
+remove_volume: compose-check ## Remove the persistent home volume for SC Drill Desktop
+	@echo "$(BLUE)[INFO] Removing persistent home volume for SC Drill Desktop...$(NC)"
+	@if docker volume ls --format "{{.Name}}" | grep -q "^sc_humble_desktop_home_volume$$"; then \
 		docker volume rm sc_humble_desktop_home_volume; \
+		echo "$(GREEN)[SUCCESS] Volume removed: sc_humble_desktop_home_volume$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Volume does not exist: sc_humble_desktop_home_volume$(NC)"; \
 	fi
-	@echo "$(GREEN)Cleanup complete!$(NC)"
+
+remove_container: compose-check ## Remove the SC Drill container
+	@echo "$(BLUE)[INFO] Removing SC Drill Desktop container...$(NC)"
+	@if docker ps -a --format "table {{.Names}}" | grep -q "^$(CONTAINER_NAME)$$"; then \
+		docker rm -f $(CONTAINER_NAME); \
+		echo "$(GREEN)[SUCCESS] Container removed: $(CONTAINER_NAME)$(NC)"; \
+	else \
+		echo "$(YELLOW)[INFO] Container does not exist: $(CONTAINER_NAME)$(NC)"; \
+	fi
 
 status: compose-check ## Show status of SC Drill Desktop containers and volumes
 	@echo "$(BLUE)[INFO] SC Drill Desktop status:$(NC)"
