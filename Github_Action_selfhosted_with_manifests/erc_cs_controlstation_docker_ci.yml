@@ -219,3 +219,26 @@ jobs:
           no-cache: true
           pull: true
           push: true
+
+  create-manifest:
+    runs-on: ubuntu-latest
+    needs: [build-and-push-image-amd64, build-and-push-image-arm64]
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Log in to GitHub Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
+        run: |
+          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop-arm64
+          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop
