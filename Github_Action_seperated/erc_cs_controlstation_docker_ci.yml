@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: epflxplore/hd
+  IMAGE_NAME: epflxplore/cs
 
 jobs:
   delete-untagged-images:
@@ -26,8 +26,52 @@ jobs:
             repository: ${{ github.repository }}
             untagged_only: true
 
+  # This workflow contains multiple jobs
+  build_test:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+          submodules: "true"
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: setup node
+        uses: actions/setup-node@master
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # install applicaion dependencies
+      - name: Install dependencies
+        run: |
+          npm cache clean --force
+          rm -rf node_modules
+          rm -rf package-lock.json
+          npm install
+          npm ci
+        working-directory: ./cs_ws/src/control_station_pkg/control_station_pkg/csApp/frontend
+
+      # build and test the apps
+      - name: build
+        run: |
+          npm run build
+          npm run test --passWithNoTests
+        working-directory: ./cs_ws/src/control_station_pkg/control_station_pkg/csApp/frontend
+        env:
+          CI: false
+
   build-and-push-image-amd64:
     runs-on: ubuntu-latest
+
+    # build docker image and push to docker hub for AMD64
+    # only if the app build and test successfully
+    needs: [build_test]
 
     permissions:
       contents: read
@@ -73,7 +117,10 @@ jobs:
             sudo du /usr/ -hx -d 4 --threshold=1G | sort -hr | head
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
+        with:
+          submodules: "true"
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -85,12 +132,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image (Desktop AMD64)
+      - name: Build and push Docker image (AMD64)
         uses: docker/build-push-action@v5
         with:
           file: ./docker_humble_desktop/Dockerfile
           context: .
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop-amd64
           platforms: linux/amd64
           no-cache: true
           pull: true
@@ -98,6 +145,10 @@ jobs:
 
   build-and-push-image-arm64:
     runs-on: ubuntu-latest
+
+    # build docker image and push to docker hub for ARM64
+    # only if the app build and test successfully
+    needs: [build_test]
 
     permissions:
       contents: read
@@ -143,7 +194,10 @@ jobs:
             sudo du /usr/ -hx -d 4 --threshold=1G | sort -hr | head
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
+        with:
+          submodules: "true"
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -158,24 +212,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image (Humble Jetson ARM64)
+      - name: Build and push Docker image (ARM64)
         uses: docker/build-push-action@v5
         with:
-          file: ./docker_humble_jetson/Dockerfile
+          file: ./docker_humble_desktop/Dockerfile
           context: .
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-jetson
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop-arm64
           platforms: linux/arm64
           no-cache: true
           pull: true
           push: true
 
-      - name: Build and push Docker image (Foxy Jetson Torch ARM64)
-        uses: docker/build-push-action@v5
+  create-manifest:
+    runs-on: ubuntu-latest
+    needs: [build-and-push-image-amd64, build-and-push-image-arm64]
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Log in to GitHub Docker Registry
+        uses: docker/login-action@v3
         with:
-          file: ./docker_foxy_jetson_torch/Dockerfile
-          context: .
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:foxy-jetson-torch
-          platforms: linux/arm64
-          no-cache: true
-          pull: true
-          push: true
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
+        run: |
+          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop-arm64
+          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop
