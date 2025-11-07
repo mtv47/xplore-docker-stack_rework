@@ -158,13 +158,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image (Jetson ARM64)
         uses: docker/build-push-action@v5
         with:
-          file: ${{ matrix.dockerfile }}
-          context: ${{ matrix.context }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.tag }}
-          platforms: ${{ matrix.platform }}
+          file: ./docker_humble_jetson/Dockerfile
+          context: .
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-jetson
+          platforms: linux/arm64
           no-cache: true
           pull: true
           push: true

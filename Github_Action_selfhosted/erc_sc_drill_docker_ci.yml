@@ -97,7 +97,7 @@ jobs:
           push: true
 
   build-and-push-image-arm64:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     permissions:
       contents: read
@@ -145,9 +145,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -158,13 +155,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image (Jetson ARM64)
         uses: docker/build-push-action@v5
         with:
-          file: ${{ matrix.dockerfile }}
-          context: ${{ matrix.context }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.tag }}
-          platforms: ${{ matrix.platform }}
+          file: ./docker_humble_jetson/Dockerfile
+          context: .
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-jetson
+          platforms: linux/arm64
           no-cache: true
           pull: true
           push: true
