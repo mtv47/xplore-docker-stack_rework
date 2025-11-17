@@ -29,7 +29,7 @@ RUN sudo rm /usr/share/keyrings/ros-archive-keyring.gpg && \
 
 USER $USERNAME
 
-RUN python3 -m pip install numpy pymodbus pyserial
+RUN python3 -m pip install --no-cache-dir numpy pymodbus pyserial
 
 # Set a diretory to store the project and a directory to build the project
 WORKDIR /home/$USERNAME/dev_ws/src
