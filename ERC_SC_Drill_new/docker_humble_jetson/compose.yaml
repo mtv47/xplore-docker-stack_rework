@@ -1,0 +1,75 @@
+services:
+  sc-drill:
+    build:
+      context: ..
+      dockerfile: docker_humble_jetson/Dockerfile
+    image: ghcr.io/epflxplore/sc:humble-jetson
+    container_name: sc_humble_jetson
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - ${PHOTOS_DIR:-/home/xplore-hd/Documents/photos_competition}:/home/xplore/dev_ws/photos_competition
+      - sc_humble_jetson_home_volume:/home/xplore
+    command: 
+      /bin/bash -c "
+        sudo chown -R xplore:xplore /home/xplore; 
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        export DISPLAY=unix$DISPLAY;
+        export QT_X11_NO_MITSHM=1;
+        export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages;
+        source install/setup.bash;
+        /bin/bash"
+    profiles:
+      - default
+
+  sc-drill-production:
+    build:
+      context: ..
+      dockerfile: docker_humble_jetson/Dockerfile
+    image: ghcr.io/epflxplore/sc:humble-jetson
+    container_name: sc_humble_jetson
+    stdin_open: false
+    tty: false
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR:-..}:/home/xplore/dev_ws/src
+      - ${PHOTOS_DIR:-/home/xplore-hd/Documents/photos_competition}:/home/xplore/dev_ws/photos_competition
+      - sc_humble_jetson_home_volume:/home/xplore
+    command: 
+      /bin/bash -c "
+        sudo chown -R xplore:xplore /home/xplore; 
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        export DISPLAY=unix$DISPLAY;
+        export QT_X11_NO_MITSHM=1;
+        export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages;
+        source install/setup.bash;
+        ros2 launch erc_drill drill.launch.xml"
+    profiles:
+      - production
+
+volumes:
+  sc_humble_jetson_home_volume:
+    external: true
+    name: sc_humble_jetson_home_volume

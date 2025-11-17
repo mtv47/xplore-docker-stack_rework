@@ -1,0 +1,30 @@
+services:
+  avionics-jetson:
+    build:
+      context: ..
+      dockerfile: docker_humble_jetson/Dockerfile
+    image: ghcr.io/epflxplore/elec:humble-jetson
+    container_name: elec_humble_jetson
+    restart: "no"
+    privileged: true
+    network_mode: host
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - elec_humble_jetson_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "sudo chown -R xplore:xplore /home/xplore; /bin/bash"
+
+volumes:
+  elec_humble_jetson_home_volume:
+    external: true
+    name: elec_humble_jetson_home_volume

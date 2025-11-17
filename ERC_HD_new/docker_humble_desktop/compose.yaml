@@ -1,0 +1,75 @@
+services:
+  hd:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+    image: ghcr.io/epflxplore/hd:humble-desktop
+    container_name: hd_humble_desktop
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - hd_humble_desktop_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "
+        sudo chown -R xplore:xplore /home/xplore;
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages;
+      /bin/bash"
+    profiles:
+      - no-gpu
+
+  hd-gpu:
+    build:
+      context: ..
+      dockerfile: docker_humble_desktop/Dockerfile
+    image: ghcr.io/epflxplore/hd:humble-desktop
+    container_name: hd_humble_desktop
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    restart: "no"  # Equivalent to --rm behavior from docker run
+    runtime: nvidia
+    environment:
+      - DISPLAY=unix${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTH}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTH}:${XAUTH}
+      - /run/user/1000/at-spi:/run/user/1000/at-spi
+      - /dev:/dev
+      - ${PARENT_DIR}:/home/xplore/dev_ws/src
+      - hd_humble_desktop_home_volume:/home/xplore
+    command: >
+      /bin/bash -c "
+        sudo chown -R xplore:xplore /home/xplore;
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;
+        export PYTHONPATH=/home/xplore/dev_ws/install/rover_pkg/lib/python3.10/site-packages:/home/xplore/dev_ws/install/custom_msg/local/lib/python3.10/dist-packages:/opt/ros/humble/install/local/lib/python3.10/dist-packages:/opt/ros/humble/install/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages;
+        /bin/bash"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - gpu
+
+volumes:
+    hd_humble_desktop_home_volume:
+        external: true
+        name: hd_humble_desktop_home_volume
