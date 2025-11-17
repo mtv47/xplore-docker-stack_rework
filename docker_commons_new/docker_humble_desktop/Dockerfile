@@ -1,7 +1,7 @@
 ###########################################
 # Base image 
 ###########################################
-FROM ubuntu:22.04 AS base
+FROM ubuntu:22.04 AS xplore_common
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -45,13 +45,6 @@ ENV PYTHONPATH=/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV ROS_PYTHON_VERSION=3
 ENV ROS_VERSION=2
 
-###########################################
-#  Develop image 
-###########################################
-FROM base AS dev
-
-ARG DEBIAN_FRONTEND=noninteractive
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash-completion \
     build-essential \
@@ -89,13 +82,6 @@ RUN apt-get update && apt-get install -y git-core bash-completion \
 RUN rm -rf /var/lib/apt/lists/*
 
 ENV AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS=1
-
-###########################################
-#  Xplore Common image
-###########################################
-FROM dev AS xplore_common
-
-ARG DEBIAN_FRONTEND=noninteractive
 
 # Install EposCmd library
 WORKDIR /usr/local/lib
