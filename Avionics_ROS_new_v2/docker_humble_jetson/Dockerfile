@@ -6,10 +6,12 @@ FROM dustynv/ros:humble-desktop-l4t-r36.2.0 AS base
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Set up ROS repository and clean up
-RUN sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+RUN sudo rm /usr/share/keyrings/ros-archive-keyring.gpg && \
+    sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     sudo apt update && \
     sudo apt install -y ros2-apt-source && \
-    sudo rm -f /etc/apt/sources.list.d/ros2.list /usr/share/keyrings/ros-archive-keyring.gpg
+    sudo rm /etc/apt/sources.list.d/ros2.list && \
+    sudo rm /usr/share/keyrings/ros-archive-keyring.gpg
 
 ENV USERNAME=xplore
 ARG USER_UID=1000
@@ -34,10 +36,11 @@ RUN apt-get update && apt-get upgrade -y && \
         libserialport-dev \
         libgstreamer1.0-dev \
         libgstreamer-plugins-base1.0-dev && \
-    pip install numpy pymodbus pyserial minimalmodbus && \
     rm -rf /var/lib/apt/lists/*
 
 USER $USERNAME
+
+RUN python3 -m pip install --no-cache-dir numpy pymodbus pyserial minimalmodbus
 
 WORKDIR /home/$USERNAME/dev_ws/src
 COPY . .
