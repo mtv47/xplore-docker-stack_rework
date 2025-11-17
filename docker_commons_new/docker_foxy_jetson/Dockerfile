@@ -1,7 +1,7 @@
 ###########################################
 # Base image 
 ###########################################
-FROM dustynv/ros:foxy-desktop-l4t-r35.4.1 AS xplore_common
+FROM dustynv/ros:foxy-desktop-l4t-r35.4.1 AS gazebo_nvidia
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -119,13 +119,6 @@ RUN echo "if [ -f /home/${USERNAME}/dev_ws/install/setup.bash ]; then source /ho
 
 # Clean up
 RUN rm -rf /var/lib/apt/lists/*
-
-###########################################
-#  Dev+Gazebo+Nvidia image 
-###########################################
-FROM xplore_common AS gazebo_nvidia
-
-ARG DEBIAN_FRONTEND=noninteractive
 
 ################
 # Expose the nvidia driver to allow opengl 

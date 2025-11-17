@@ -1,7 +1,7 @@
 ###########################################
 # Base image 
 ###########################################
-FROM dustynv/pytorch:2.1-r36.2.0 AS xplore_common
+FROM dustynv/pytorch:2.1-r36.2.0 AS gazebo_nvidia
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -138,13 +138,6 @@ RUN echo "if [ -f /home/${USERNAME}/dev_ws/install/setup.bash ]; then source /ho
 
 # Clean up
 RUN rm -rf /var/lib/apt/lists/*
-
-###########################################
-#  Dev+Gazebo+Nvidia image 
-###########################################
-FROM xplore_common AS gazebo_nvidia
-
-ARG DEBIAN_FRONTEND=noninteractive
 
 ################
 # Expose the nvidia driver to allow opengl 
