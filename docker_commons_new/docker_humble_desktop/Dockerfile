@@ -75,7 +75,7 @@ COPY ./EposCmd/include/Definitions.h /usr/include/EposCmd.h
 COPY ./EposCmd/include/ftd2xx.h /usr/include/
 COPY ./EposCmd/misc/99-ftdi.rules /etc/udev/rules.d/
 COPY ./EposCmd/misc/99-epos4.rules /etc/udev/rules.d/
-RUN echo "/etc/init.d/udev restart" \
+RUN /etc/init.d/udev restart \
     && ln -s /usr/local/lib/libEposCmd.so.6.7.1.0 /usr/local/lib/libEposCmd.so \
     && ln -s /usr/local/lib/libftd2xx.so.1.4.27 /usr/local/lib/libftd2xx.so \
     && ln -s /usr/local/lib/libEposCmd.so /usr/lib/libEposCmd.so \

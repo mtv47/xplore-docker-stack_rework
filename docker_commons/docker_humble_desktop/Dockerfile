@@ -116,7 +116,7 @@ RUN mv Definitions.h EposCmd.h
 WORKDIR /etc/udev/rules.d
 COPY ./EposCmd/misc/99-ftdi.rules .
 COPY ./EposCmd/misc/99-epos4.rules .
-RUN echo "/etc/init.d/udev restart"
+RUN /etc/init.d/udev restart
 
 # Install common ROS 2 packages
 RUN apt-get update && apt-get upgrade -y
