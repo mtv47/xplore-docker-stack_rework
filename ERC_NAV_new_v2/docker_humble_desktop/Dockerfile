@@ -47,13 +47,11 @@ WORKDIR /home/$USERNAME/dev_ws/src
 COPY . .
 WORKDIR /home/$USERNAME/dev_ws
 
-# Install ROS 2 Nav dependencies and configure bashrc
+# Install ROS 2 Nav dependencies and configure bashrc and install additional Python packages and remove confidential source code
 RUN rosdep update && \
     rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y -r && \
-    echo "if [ -f /home/${USERNAME}/dev_ws/install/setup.bash ]; then source /home/${USERNAME}/dev_ws/install/setup.bash; fi" >> /home/${USERNAME}/.bashrc
-
-# Install additional Python packages and remove confidential source code
-RUN pip install --no-cache-dir \
+    echo "if [ -f /home/${USERNAME}/dev_ws/install/setup.bash ]; then source /home/${USERNAME}/dev_ws/install/setup.bash; fi" >> /home/${USERNAME}/.bashrc && \
+    pip install --no-cache-dir \
         opencv-python \
         opencv-contrib-python==4.6.0.66 \
         depthai \

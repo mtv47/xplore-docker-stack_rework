@@ -50,16 +50,13 @@ RUN rm /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | tee /etc/udev/rules.d/80-movidius.rules && \
     /etc/init.d/udev restart && \
     pip install --no-cache-dir -v evdev depthai pyrealsense2 ultralytics opencv-python opencv-contrib-python==4.7.0.72 numpy==1.24.0 && \
-    rm -rf /var/lib/apt/lists/*
+    pip install --no-cache-dir --upgrade pip && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* && \
+    apt-get clean && \
+    rm -rf /home/$USERNAME/dev_ws/src/*
 
 USER $USERNAME
-
-# Upgrade pip
-RUN pip install --no-cache-dir --upgrade pip
 
 WORKDIR /home/$USERNAME/dev_ws/src
 COPY . .
 WORKDIR /home/$USERNAME/dev_ws
-
-# Remove confidential source code
-RUN sudo rm -rf /home/$USERNAME/dev_ws/src/*

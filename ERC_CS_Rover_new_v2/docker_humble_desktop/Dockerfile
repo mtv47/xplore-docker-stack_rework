@@ -5,8 +5,15 @@ FROM ghcr.io/epflxplore/docker_commons:humble-desktop as build-rover
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install Rover packages and configure USB rules
-RUN apt-get update && apt-get upgrade -y && \
+WORKDIR /home/$USERNAME
+
+# Install Rover packages and configure USB rules, and install python dependencies
+RUN rm /usr/share/keyrings/ros-archive-keyring.gpg && \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    apt update && apt install ros2-apt-source && \
+    rm /etc/apt/sources.list.d/ros2.list && \
+    rm /usr/share/keyrings/ros-archive-keyring.gpg && \
+    apt-get update && apt-get upgrade -y && \
     ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
         curl \
         python3-opencv \
@@ -15,26 +22,24 @@ RUN apt-get update && apt-get upgrade -y && \
         ros-${ROS_DISTRO}-nav2-bringup && \
     echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | tee /etc/udev/rules.d/80-movidius.rules && \
     /etc/init.d/udev restart && \
-    rm -rf /var/lib/apt/lists/*
-
-USER $USERNAME
-WORKDIR /home/$USERNAME
-
-# Install Python dependencies
-RUN pip install --no-cache-dir \
-    numpy \
-    aiohttp \
-    aiortc \
-    aiohttp_cors \
-    ping3 \
-    tornado \
-    requests \
-    bson \
-    pymongo
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* && \
+    apt-get clean && \
+    pip install --no-cache-dir \
+        numpy \
+        aiohttp \
+        aiortc \
+        aiohttp_cors \
+        ping3 \
+        tornado \
+        requests \
+        bson \
+        pymongo
 
 WORKDIR /home/$USERNAME/dev_ws/src
 COPY . .
 WORKDIR /home/$USERNAME/dev_ws
+
+USER $USERNAME
 
 # Install ROS 2 Nav dependencies and remove confidential source code
 RUN rosdep update && \
