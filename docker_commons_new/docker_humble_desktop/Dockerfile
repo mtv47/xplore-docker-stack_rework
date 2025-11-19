@@ -23,43 +23,41 @@ ENV USERNAME=xplore
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-# Install language and timezone
+# Install language, timezone and common programs
 RUN apt-get update && apt-get install -y locales tzdata\
     && locale-gen en_US en_US.UTF-8 \   
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
     && ln -sf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && dpkg-reconfigure tzdata \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install common programs
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    gnupg2 \
-    lsb-release \
-    sudo \
-    software-properties-common \
-    wget \
-    bash-completion \
-    build-essential \
-    cmake \
-    gdb \
-    git \
-    openssh-client \
-    python3-argcomplete \
-    python3-pip \
-    ros-dev-tools \
-    vim \
-    git-core \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends \
+        curl \
+        gnupg2 \
+        lsb-release \
+        sudo \
+        software-properties-common \
+        wget \
+        bash-completion \
+        build-essential \
+        cmake \
+        gdb \
+        git \
+        openssh-client \
+        python3-argcomplete \
+        python3-pip \
+        vim \
+        git-core \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
+    && apt-get clean
 
 # Install ROS 2 Humble
 RUN add-apt-repository universe \
-    && apt-get update \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-    && apt-get update && apt-get upgrade -y \
-    && apt-get install -y ros-humble-desktop \
-    && rm -rf /var/lib/apt/lists/* && rosdep init || echo "rosdep already initialized"
+    && apt-get update \
+    && apt-get install -y ros-humble-desktop ros-dev-tools\
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
+    && apt-get clean \
+    && rosdep init || echo "rosdep already initialized"
 
 # Create a non-root user and set up autocompletion for user
 RUN groupadd --gid $USER_GID $USERNAME \
@@ -77,24 +75,23 @@ COPY ./EposCmd/include/Definitions.h /usr/include/EposCmd.h
 COPY ./EposCmd/include/ftd2xx.h /usr/include/
 COPY ./EposCmd/misc/99-ftdi.rules /etc/udev/rules.d/
 COPY ./EposCmd/misc/99-epos4.rules /etc/udev/rules.d/
-RUN /etc/init.d/udev restart \
+RUN echo "/etc/init.d/udev restart" \
     && ln -s /usr/local/lib/libEposCmd.so.6.7.1.0 /usr/local/lib/libEposCmd.so \
     && ln -s /usr/local/lib/libftd2xx.so.1.4.27 /usr/local/lib/libftd2xx.so \
     && ln -s /usr/local/lib/libEposCmd.so /usr/lib/libEposCmd.so \
     && ln -s /usr/local/lib/libftd2xx.so /usr/lib/libftd2xx.so
 
 # Install common ROS 2 packages and configure user groups
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y --no-install-recommends \
+# and add RMW_IMPLEMENTATION to .bashrc and Add the source of the project to the .bashrc
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-behaviortree-cpp-v3 \
     ros-${ROS_DISTRO}-xacro \
     ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
-    && rm -rf /var/lib/apt/lists/* \
     && usermod -aG dialout $USERNAME \
-    && usermod -aG video $USERNAME
-
-# Add RMW_IMPLEMENTATION to .bashrc and Add the source of the project to the .bashrc
-RUN echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /home/${USERNAME}/.bashrc \
+    && usermod -aG video $USERNAME \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
+    && apt-get clean \
+    && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /home/${USERNAME}/.bashrc \
     && echo "if [ -f /home/${USERNAME}/dev_ws/install/setup.bash ]; then source /home/${USERNAME}/dev_ws/install/setup.bash; fi" >> /home/${USERNAME}/.bashrc
 
 # Set working directory
@@ -123,16 +120,18 @@ RUN apt-get update \
     && dpkg -i cuda-keyring_1.0-1_all.deb \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-    cuda-toolkit-11-8 \
-    libglvnd0 \
-    libgl1 \
-    libglx0 \
-    libegl1 \
-    libxext6 \
-    libx11-6 \
-    && rm -f cuda-keyring_1.0-1_all.deb \
-    && curl -sSL http://get.gazebosim.org | sh \
-    && apt-get update && apt-get upgrade -y \
+        cuda-toolkit-11-8 \
+        libglvnd0 \
+        libgl1 \
+        libglx0 \
+        libegl1 \
+        libxext6 \
+        libx11-6 \
+        gnupg \
+    && curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null \
+    && apt-get update \
+    && apt-get -y install ignition-fortress \
     && apt-get install -y --no-install-recommends ros-${ROS_DISTRO}-gazebo-ros-pkgs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/*

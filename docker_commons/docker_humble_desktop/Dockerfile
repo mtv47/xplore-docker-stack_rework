@@ -116,7 +116,7 @@ RUN mv Definitions.h EposCmd.h
 WORKDIR /etc/udev/rules.d
 COPY ./EposCmd/misc/99-ftdi.rules .
 COPY ./EposCmd/misc/99-epos4.rules .
-RUN /etc/init.d/udev restart
+RUN echo "/etc/init.d/udev restart"
 
 # Install common ROS 2 packages
 RUN apt-get update && apt-get upgrade -y
@@ -174,7 +174,11 @@ RUN apt-get update \
     libx11-6
 
 # Install Gazebo
-RUN curl -sSL http://get.gazebosim.org | sh
+RUN apt-get install lsb-release gnupg \
+    && curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null \
+    && apt-get update \
+    && apt-get -y install ignition-fortress
 
 # Install Gazebo ROS packages
 RUN apt-get update && apt-get upgrade -y

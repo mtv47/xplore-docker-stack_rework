@@ -1,0 +1,25 @@
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+13035156898
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons/docker_humble_desktop$ docker image ls
+                                                                                                       i Info →   U  In Use
+IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
+ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia   a3f65e40b701         13GB             0B        
+hello-world:latest                                        1b44b5a3e06a       10.1kB             0B    U   
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons/docker_humble_desktop$ docker image rm ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+Untagged: ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+Deleted: sha256:a3f65e40b701a0d895c61ef6fff1e58cdb92390a18630445e838e33c54ec48aa
+
+
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker image ls
+                                                                                                       i Info →   U  In Use
+IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
+ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia   f26e12655bb1       12.7GB             0B        
+hello-world:latest                                        1b44b5a3e06a       10.1kB             0B    U   
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+12747736731
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker image rm ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+Untagged: ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+Deleted: sha256:f26e12655bb12a094bb7456f58f5bfeaf4274460af135f9664cf896801d63575
+
+
+
