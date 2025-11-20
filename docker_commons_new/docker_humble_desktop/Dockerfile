@@ -135,3 +135,48 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ros-${ROS_DISTRO}-gazebo-ros-pkgs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+FROM xplore_common AS gazebo_nvidia_new
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Env vars for the nvidia-container-runtime.
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
+ENV QT_X11_NO_MITSHM 1
+# Source CUDA
+ENV CUDA_HOME=/usr/local/cuda-11.8
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
+ENV PATH=${CUDA_HOME}/bin:$PATH
+
+# Install only CUDA runtime libraries instead of full toolkit
+RUN apt-get update \
+    && apt-get install -y nvidia-driver-470 \
+    && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb \
+    && dpkg -i cuda-keyring_1.0-1_all.deb \
+    && rm cuda-keyring_1.0-1_all.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        cuda-cudart-11-8 \
+        cuda-libraries-11-8 \
+        libcublas-11-8 \
+        libcufft-11-8 \
+        libcurand-11-8 \
+        libcusolver-11-8 \
+        libcusparse-11-8 \
+        libnpp-11-8 \
+        libnvjpeg-11-8 \
+        libglvnd0 \
+        libgl1 \
+        libglx0 \
+        libegl1 \
+        libxext6 \
+        libx11-6 \
+        gnupg \
+    && curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null \
+    && apt-get update \
+    && apt-get -y install ignition-fortress \
+    && apt-get install -y --no-install-recommends ros-${ROS_DISTRO}-gazebo-ros-pkgs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/*

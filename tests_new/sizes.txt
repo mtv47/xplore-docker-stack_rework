@@ -147,3 +147,25 @@ ghcr.io/epflxplore/sc:humble-desktop                      8d2dc3b1db88       12.
 hello-world:latest                                        1b44b5a3e06a       10.1kB             0B    U   
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_SC_Drill_new_v2/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/sc:humble-desktop
 12776348912
+
+-----------------------
+ mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker image ls
+                                                                                               i Info →   U  In Use
+IMAGE                                                         ID             DISK USAGE   CONTENT SIZE   EXTRA
+ghcr.io/epflxplore/docker_commons:humble-desktop              0eeaeeb8bd9e       3.86GB             0B        
+ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia       470a6579a9ef       12.7GB             0B        
+ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia-new   087c998cca02       7.52GB             0B        
+ghcr.io/epflxplore/nav:humble-desktop                         3bb7e3a771b6       10.6GB             0B        
+ghcr.io/epflxplore/sc:humble-desktop                          b833a12ee904       7.54GB             0B        
+hello-world:latest                                            1b44b5a3e06a       10.1kB             0B    U   
+ubuntu:22.04                                                  9fa3e2b5204f       77.9MB             0B 
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop
+3855037705
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+12747740656
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia-new
+7523439630
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/nav:humble-desktop
+10580716304
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/sc:humble-desktop
+7535876835
