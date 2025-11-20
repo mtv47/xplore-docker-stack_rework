@@ -5,35 +5,40 @@ FROM ghcr.io/epflxplore/docker_commons:humble-jetson
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies for building librealsense with Python bindings
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    cmake \
-    build-essential \
-    libssl-dev \
-    libusb-1.0-0-dev \
-    libudev-dev \
-    pkg-config \
-    libgtk-3-dev \
-    python3 \
-    python3-setuptools \
-    python3-dev \
-    python3-pip \
-    python3-pybind11 \
-    v4l-utils \
-    libxinerama-dev \
-    libxcursor-dev \
-    libcanberra-gtk-module \
-    libcanberra-gtk3-module && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+ENV PYTHONPATH=/usr/local/lib/python3.10/dist-packages
+ENV PYTHONPATH=/usr/local/lib/python3.10/dist-packages/pyrealsense2:$PYTHONPATH
 
+ENV GAZEBO_RESOURCE_PATH=/usr/share/gazebo-11
+ENV GAZEBO_MODEL_PATH=/usr/share/gazebo-11/models
+ENV GAZEBO_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gazebo-11/plugins
+
+# Install dependencies for building librealsense with Python bindings
 # Clone, build and install librealsense with Python bindings
-RUN git clone https://github.com/IntelRealSense/librealsense.git /librealsense && \
+# Install ROS 2 Nav packages and configure USB rules
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+        cmake \
+        build-essential \
+        libssl-dev \
+        libusb-1.0-0-dev \
+        libudev-dev \
+        pkg-config \
+        libgtk-3-dev \
+        python3 \
+        python3-setuptools \
+        python3-dev \
+        python3-pip \
+        python3-pybind11 \
+        v4l-utils \
+        libxinerama-dev \
+        libxcursor-dev \
+        libcanberra-gtk-module \
+        libcanberra-gtk3-module && \
+    git clone https://github.com/IntelRealSense/librealsense.git /librealsense && \
     cd /librealsense && \
     git submodule update --init --recursive && \
-    /librealsense/scripts/setup_udev_rules.sh && \
-    mkdir -p /librealsense/build && \
+    ./librealsense/scripts/setup_udev_rules.sh && \
     cd /librealsense/build && \
     cmake ../ \
         -DBUILD_PYTHON_BINDINGS:bool=true \
@@ -48,12 +53,8 @@ RUN git clone https://github.com/IntelRealSense/librealsense.git /librealsense &
     make install && \
     mkdir -p /usr/local/lib/python3.10/dist-packages/pyrealsense2 && \
     cp /librealsense/build/release/pyrealsense2.cpython-310-aarch64-linux-gnu.so* /usr/local/lib/python3.10/dist-packages/pyrealsense2/ && \
-    cp /librealsense/wrappers/python/pyrealsense2/__init__.py /usr/local/lib/python3.10/dist-packages/pyrealsense2/
-
-ENV PYTHONPATH=/usr/local/lib/python3.10/dist-packages:/usr/local/lib/python3.10/dist-packages/pyrealsense2:$PYTHONPATH
-
-# Install ROS 2 Nav packages and configure USB rules
-RUN add-apt-repository ppa:borglab/gtsam-release-4.1 && \
+    cp /librealsense/wrappers/python/pyrealsense2/__init__.py /usr/local/lib/python3.10/dist-packages/pyrealsense2/ && \
+    add-apt-repository ppa:borglab/gtsam-release-4.1 && \
     apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         ros-${ROS_DISTRO}-navigation2 \
@@ -93,7 +94,8 @@ RUN add-apt-repository ppa:borglab/gtsam-release-4.1 && \
         iputils-ping && \
     echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | tee /etc/udev/rules.d/80-movidius.rules && \
     /etc/init.d/udev restart && \
-    rm -rf /var/lib/apt/lists/*  
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* && \
+    apt-get clean
 
 # Add Lidar Host
 # RUN echo "169.254.55.220  os-122140001125.local" >> /etc/hosts
@@ -107,27 +109,20 @@ RUN add-apt-repository ppa:borglab/gtsam-release-4.1 && \
 
 USER $USERNAME
 
-# Install jetson-stats
-RUN sudo pip install -U jetson-stats
-
 WORKDIR /home/$USERNAME/dev_ws/src
 COPY . .
 WORKDIR /home/$USERNAME/dev_ws
 
+# Install jetson-stats
 # Install ROS 2 Nav dependencies and configure bashrc
 # CAUTION: the exec depend of gazebo-ros in xplore_description's package.xml will cause the build to crash!
 # will give the error: can't locate ros-humble-gazebo-ros
-RUN rosdep update && \
-    rosdep install -r -y -i --from-path src --rosdistro $ROS_DISTRO --skip-keys="ros-humble-gazebo-ros" && \
-    echo "if [ -f /home/${USERNAME}/dev_ws/install/setup.bash ]; then source /home/${USERNAME}/dev_ws/install/setup.bash; fi" >> /home/${USERNAME}/.bashrc
-
-# ENV VARIABLES
-ENV GAZEBO_RESOURCE_PATH=/usr/share/gazebo-11
-ENV GAZEBO_MODEL_PATH=/usr/share/gazebo-11/models
-ENV GAZEBO_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gazebo-11/plugins
-
 # Install additional Python packages and remove confidential source code
-RUN pip install --no-cache-dir \
+RUN sudo pip install -U jetson-stats && \
+    rosdep update && \
+    rosdep install -r -y -i --from-path src --rosdistro $ROS_DISTRO --skip-keys="ros-humble-gazebo-ros" && \
+    echo "if [ -f /home/${USERNAME}/dev_ws/install/setup.bash ]; then source /home/${USERNAME}/dev_ws/install/setup.bash; fi" >> /home/${USERNAME}/.bashrc && \
+    pip install --no-cache-dir \
         opencv-python \
         opencv-contrib-python==4.6.0.66 \
         depthai \
