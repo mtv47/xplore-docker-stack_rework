@@ -75,11 +75,11 @@ COPY ./EposCmd/include/Definitions.h /usr/include/EposCmd.h
 COPY ./EposCmd/include/ftd2xx.h /usr/include/
 COPY ./EposCmd/misc/99-ftdi.rules /etc/udev/rules.d/
 COPY ./EposCmd/misc/99-epos4.rules /etc/udev/rules.d/
-RUN /etc/init.d/udev restart \
-    && ln -s /usr/local/lib/libEposCmd.so.6.7.1.0 /usr/local/lib/libEposCmd.so \
+RUN ln -s /usr/local/lib/libEposCmd.so.6.7.1.0 /usr/local/lib/libEposCmd.so \
     && ln -s /usr/local/lib/libftd2xx.so.1.4.27 /usr/local/lib/libftd2xx.so \
     && ln -s /usr/local/lib/libEposCmd.so /usr/lib/libEposCmd.so \
-    && ln -s /usr/local/lib/libftd2xx.so /usr/lib/libftd2xx.so
+    && ln -s /usr/local/lib/libftd2xx.so /usr/lib/libftd2xx.so \
+    && /etc/init.d/udev restart 
 
 # Install common ROS 2 packages and configure user groups
 # and add RMW_IMPLEMENTATION to .bashrc and Add the source of the project to the .bashrc
