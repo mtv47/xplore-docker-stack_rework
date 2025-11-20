@@ -18,6 +18,7 @@ mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_deskt
 
 
 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/elec:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/Avionics_ROS/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
@@ -40,6 +41,7 @@ mtv@x570:~/Documents/GitHub/docker-rework/Avionics_ROS_new_v2/docker_humble_desk
 
 
 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/cs:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_CS_ControlStation/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
@@ -62,6 +64,7 @@ mtv@x570:~/Documents/GitHub/docker-rework/ERC_CS_ControlStation_new_v2/docker_hu
 
 
 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 docker build --pull=false --no-cache --progress=plain --target build-rover -t ghcr.io/epflxplore/rover:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_CS_Rover/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
@@ -84,6 +87,7 @@ mtv@x570:~/Documents/GitHub/docker-rework/ERC_CS_Rover_new_v2/docker_humble_desk
 
 
 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 docker build --pull=false --no-cache --progress=plain -t gghcr.io/epflxplore/hd:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_HD/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
@@ -106,6 +110,7 @@ mtv@x570:~/Documents/GitHub/docker-rework/ERC_HD_new_v2/docker_humble_desktop$ d
 
 
 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/nav:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_NAV/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
@@ -128,6 +133,7 @@ mtv@x570:~/Documents/GitHub/docker-rework/ERC_NAV_new_v2/docker_humble_desktop$ 
 
 
 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/sc:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_SC_Drill/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
@@ -148,7 +154,9 @@ hello-world:latest                                        1b44b5a3e06a       10.
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_SC_Drill_new_v2/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/sc:humble-desktop
 12776348912
 
------------------------
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker image ls
                                                                                                i Info →   U  In Use
 IMAGE                                                         ID             DISK USAGE   CONTENT SIZE   EXTRA
