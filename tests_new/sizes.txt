@@ -1,4 +1,4 @@
-docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/elec:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia --target gazebo_nvidia .
 mtv@x570:~/Documents/GitHub/docker-rework/docker_commons/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
 IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
@@ -7,7 +7,7 @@ hello-world:latest                                        1b44b5a3e06a       10.
 mtv@x570:~/Documents/GitHub/docker-rework/docker_commons/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
 13035156898 
 
-docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/elec:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia --target gazebo_nvidia .
 mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
 IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
@@ -18,7 +18,7 @@ mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_deskt
 
 
 
-docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/cs:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/elec:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/Avionics_ROS/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
 IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
@@ -28,7 +28,7 @@ hello-world:latest                                        1b44b5a3e06a       10.
 mtv@x570:~/Documents/GitHub/docker-rework/Avionics_ROS/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/elec:humble-desktop
 7921510489
 
-docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/cs:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/elec:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/Avionics_ROS_new_v2/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
 IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
