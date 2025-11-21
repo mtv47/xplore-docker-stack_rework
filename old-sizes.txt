@@ -88,24 +88,24 @@ mtv@x570:~/Documents/GitHub/docker-rework/ERC_CS_Rover_new_v2/docker_humble_desk
 
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-docker build --pull=false --no-cache --progress=plain -t gghcr.io/epflxplore/hd:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/hd:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_HD/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
 IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
-gghcr.io/epflxplore/hd:humble-desktop                     9ef808bbcc1f         14GB             0B        
+ghcr.io/epflxplore/hd:humble-desktop                     9ef808bbcc1f         14GB             0B        
 ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia   64d2f4c4225e         13GB             0B        
 hello-world:latest                                        1b44b5a3e06a       10.1kB             0B    U   
-mtv@x570:~/Documents/GitHub/docker-rework/ERC_HD/docker_humble_desktop$ docker inspect -f "{{ .Size }}" gghcr.io/epflxplore/hd:humble-desktop
+mtv@x570:~/Documents/GitHub/docker-rework/ERC_HD/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/hd:humble-desktop
 13995326284
 
-docker build --pull=false --no-cache --progress=plain -t gghcr.io/epflxplore/hd:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/hd:humble-desktop -f Dockerfile ..
 mtv@x570:~/Documents/GitHub/docker-rework/ERC_HD_new_v2/docker_humble_desktop$ docker image ls
                                                                                                        i Info →   U  In Use
 IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
-gghcr.io/epflxplore/hd:humble-desktop                     5482807234be       13.9GB             0B        
+ghcr.io/epflxplore/hd:humble-desktop                     5482807234be       13.9GB             0B        
 ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia   f26e12655bb1       12.7GB             0B        
 hello-world:latest                                        1b44b5a3e06a       10.1kB             0B    U   
-mtv@x570:~/Documents/GitHub/docker-rework/ERC_HD_new_v2/docker_humble_desktop$ docker inspect -f "{{ .Size }}" gghcr.io/epflxplore/hd:humble-desktop
+mtv@x570:~/Documents/GitHub/docker-rework/ERC_HD_new_v2/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/hd:humble-desktop
 13905042172
 
 

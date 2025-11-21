@@ -1,0 +1,93 @@
+---------------------
+Stock commands
+---------------------
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia --target gazebo_nvidia .
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/docker_commons:humble-desktop --target xplore_common .
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop
+
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/elec:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/cs:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain --target build-rover -t ghcr.io/epflxplore/rover:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/hd:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/nav:humble-desktop -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/sc:humble-desktop -f Dockerfile ..
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/elec:humble-desktop
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/cs:humble-desktop
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/rover:humble-desktop
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/hd:humble-desktop
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/nav:humble-desktop
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/sc:humble-desktop
+
+---------------------
+Stock docker_commons images sizes:
+---------------------
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons/docker_humble_desktop$ docker image ls
+                                                                                                       i Info →   U  In Use
+IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
+ghcr.io/epflxplore/docker_commons:humble-desktop          54a06a039c9c       4.04GB             0B        
+ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia   ebf9e46a1106         13GB             0B        
+hello-world:latest                                        1b44b5a3e06a       10.1kB             0B    U   
+ubuntu:22.04                                              9fa3e2b5204f       77.9MB             0B        
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia
+13041898362
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop
+4041585083
+
+-------------------
+Stock containers sizes:
+-------------------
+mtv@x570:~/Documents/GitHub/docker-rework$ docker image ls
+                                                                                                       i Info →   U  In Use
+IMAGE                                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
+ghcr.io/epflxplore/cs:humble-desktop                      d49a3f7c2bbb       4.36GB             0B        
+ghcr.io/epflxplore/docker_commons:humble-desktop          54a06a039c9c       4.04GB             0B        
+ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia   ebf9e46a1106         13GB             0B        
+ghcr.io/epflxplore/elec:humble-desktop                    fb5c1560386b       6.88GB             0B        
+ghcr.io/epflxplore/hd:humble-desktop                      0a32b26aa072         13GB             0B        
+ghcr.io/epflxplore/nav:humble-desktop                     e58dea28d4b2       16.4GB             0B        
+ghcr.io/epflxplore/rover:humble-desktop                   ca941c4d097b       4.82GB             0B        
+ghcr.io/epflxplore/sc:humble-desktop                      dd3ed1638de6       13.1GB             0B        
+hello-world:latest                                        1b44b5a3e06a       10.1kB             0B    U   
+ubuntu:22.04                                              9fa3e2b5204f       77.9MB             0B        
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/elec:humble-desktop
+6880712353
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/cs:humble-desktop
+4364438182
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/rover:humble-desktop
+4824186019
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/hd:humble-desktop
+12963319833
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/nav:humble-desktop
+16406183416
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/sc:humble-desktop
+13121639926
+
+---------------------
+New commands
+---------------------
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia-new --target gazebo_nvidia .
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/docker_commons:humble-desktop-new --target xplore_common .
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia-new
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-new
+
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/elec:humble-desktop-new -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/cs:humble-desktop-new -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain --target build-rover -t ghcr.io/epflxplore/rover:humble-desktop-new -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/hd:humble-desktop-new -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/nav:humble-desktop-new -f Dockerfile ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/sc:humble-desktop-new -f Dockerfile ..
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/elec:humble-desktop-new
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/cs:humble-desktop-new
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/rover:humble-desktop-new
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/hd:humble-desktop-new
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/nav:humble-desktop-new
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/sc:humble-desktop-new
+
+---------------------
+New docker_commons images sizes:
+---------------------
+
+-------------------
+New containers sizes:
+-------------------
