@@ -1,0 +1,35 @@
+------------------
+Avionics Stock VS New Jetson Image Sizes
+------------------
+xplore@ubuntu:~/Documents/docker-rework/Avionics_ROS_new_v2/docker_humble_jetson$ docker image ls
+REPOSITORY                            TAG                          IMAGE ID       CREATED          SIZE
+ghcr.io/epflxplore/elec               humble-jetson-new            771b68772473   31 seconds ago   16.7GB
+ghcr.io/epflxplore/elec               humble-jetson                84015f84002d   15 minutes ago   17GB
+docker_humble_desktop-vocal_command   latest                       b9f865087a9b   8 months ago     4.53GB
+hello-world                           latest                       f1f77a0f96b7   10 months ago    5.2kB
+dustynv/ros                           humble-desktop-l4t-r36.2.0   ccf0bf9d5589   23 months ago    15.7GB
+xplore@ubuntu:~/Documents/docker-rework/Avionics_ROS_new_v2/docker_humble_jetson$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/elec:humble-jetson
+16957166155
+xplore@ubuntu:~/Documents/docker-rework/Avionics_ROS_new_v2/docker_humble_jetson$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/elec:humble-jetson-new
+16682126151
+xplore@ubuntu:~/Documents/docker-rework/Avionics_ROS_new_v2/docker_humble_jetson$ docker inspect -f "{{ .Size }}" dustynv/ros:humble-desktop-l4t-r36.2.0
+15661604449
+
+------------------
+NAV Stock VS New Jetson Image Sizes
+------------------
+xplore@ubuntu:~/Documents/docker-rework/ERC_NAV_new_v2/docker_humble_glim$ docker image ls
+REPOSITORY                            TAG                          IMAGE ID       CREATED          SIZE
+ghcr.io/epflxplore/nav                humble-glim-new              d64a3f5f2a09   3 minutes ago    16GB
+ghcr.io/epflxplore/nav                humble-glim                  6a3d43c52ace   17 minutes ago   16.2GB
+docker_humble_desktop-vocal_command   latest                       b9f865087a9b   8 months ago     4.53GB
+hello-world                           latest                       f1f77a0f96b7   10 months ago    5.2kB
+dustynv/ros                           humble-desktop-l4t-r36.2.0   ccf0bf9d5589   23 months ago    15.7GB
+xplore@ubuntu:~/Documents/docker-rework/ERC_NAV_new_v2/docker_humble_glim$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/nav:humble-glim
+16188209957
+xplore@ubuntu:~/Documents/docker-rework/ERC_NAV_new_v2/docker_humble_glim$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/nav:humble-glim-new
+16024959362
+
+------------------
+Stock other Jetson Images Sizes
+------------------
