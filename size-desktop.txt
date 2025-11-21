@@ -193,7 +193,7 @@ Size Comparison Table:
 
 | Image                        | Stock    | New      | Reduced  | Stock→New Savings | Stock→Reduced Savings |
 |------------------------------|----------|----------|----------|-------------------|-----------------------|
-| xplore_common                | 4.04 GB  | 3.85 GB  | 3.85 GB  | 190 MB (4.7%)     | 190 MB (4.7%)         |
+| xplore_common                | 4.04 GB  | 3.85 GB  | 3.85 GB  | 190 MB (4.7%)     |                       |
 | gazebo_nvidia                | 13.0 GB  | 12.7 GB  | 7.52 GB  | 297 MB (2.3%)     | 5.52 GB (42.4%)       |
 
 ## Individual Containers
@@ -217,27 +217,12 @@ Size Comparison Table:
 
 ## Key Changes
 
-**New (cuda-libraries):**
+**Reduced (runtime-only):**
 - Removed unnecessary packages from xplore_common
 - Replaced `cuda-toolkit-11-8` with `cuda-libraries-11-8` meta-package
-
-**Reduced (runtime-only):**
 - Same as New, plus:
 - Installed only essential CUDA runtime libraries:
   - `cuda-cudart-11-8` (CUDA Runtime API)
   - `cuda-libraries-11-8` (includes cuBLAS, cuFFT, cuRAND, cuSOLVER, cuSPARSE, NPP, nvJPEG)
 - Removed redundant individual library packages
 - Kept `nvidia-driver-470` and `ignition-fortress`
-
-## Size Breakdown per Layer (Reduced Configuration)
-
-| Layer Component          | Size    | Purpose                                    |
-|--------------------------|---------|---------------------------------------------|
-| Ubuntu 22.04 base        | ~78 MB  | Operating system                            |
-| ROS 2 Humble Desktop     | ~3.0 GB | ROS framework and tools                     |
-| Common packages          | ~770 MB | Build tools, utilities, ROS extras          |
-| NVIDIA Driver            | ~500 MB | GPU driver (470)                            |
-| CUDA Runtime Libraries   | ~2.0 GB | GPU computing runtime                       |
-| Ignition Fortress        | ~1.2 GB | Gazebo simulation environment               |
-| **Total (gazebo_nvidia_new)** | **~7.5 GB** | Complete GPU-enabled simulation stack |
----------------------
