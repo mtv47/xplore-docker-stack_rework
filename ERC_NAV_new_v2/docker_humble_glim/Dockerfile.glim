@@ -40,7 +40,7 @@ RUN rm /usr/share/keyrings/ros-archive-keyring.gpg && \
     chmod 0440 /etc/sudoers.d/$USERNAME && \
     echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* && \
-    apt-get clean && \
+    apt-get clean
 
 WORKDIR /home/${USERNAME}/dev_ws/
 
