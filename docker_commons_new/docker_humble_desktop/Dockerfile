@@ -24,6 +24,8 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # Install language, timezone and common programs
+# Install ROS 2 Humble
+# Create a non-root user and set up autocompletion for user
 RUN apt-get update && apt-get install -y locales tzdata\
     && locale-gen en_US en_US.UTF-8 \   
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
@@ -46,21 +48,15 @@ RUN apt-get update && apt-get install -y locales tzdata\
         python3-pip \
         vim \
         git-core \
-    && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
-    && apt-get clean
-
-# Install ROS 2 Humble
-RUN add-apt-repository universe \
+    && add-apt-repository universe \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null \
     && apt-get update \
     && apt-get install -y ros-humble-desktop ros-dev-tools\
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
     && apt-get clean \
-    && rosdep init || echo "rosdep already initialized"
-
-# Create a non-root user and set up autocompletion for user
-RUN groupadd --gid $USER_GID $USERNAME \
+    && rosdep init || echo "rosdep already initialized" \
+    && groupadd --gid $USER_GID $USERNAME \
     && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
     && chmod 0440 /etc/sudoers.d/$USERNAME \
