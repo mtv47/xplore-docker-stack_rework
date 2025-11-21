@@ -87,7 +87,43 @@ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/sc:humble-desktop-new
 ---------------------
 New docker_commons images sizes:
 ---------------------
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker image ls
+                                                                                                       i Info →   U  In Use
+IMAGE                                                         ID             DISK USAGE   CONTENT SIZE   EXTRA
+ghcr.io/epflxplore/docker_commons:humble-desktop-new          659658da7cfd       3.85GB             0B        
+ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia-new   1dc8571d29ff       12.7GB             0B        
+hello-world:latest                                            1b44b5a3e06a       10.1kB             0B    U   
+ubuntu:22.04                                                  9fa3e2b5204f       77.9MB             0B        
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia-new
+12744651417
+mtv@x570:~/Documents/GitHub/docker-rework/docker_commons_new/docker_humble_desktop$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-desktop-new
+3851948482
 
 -------------------
 New containers sizes:
 -------------------
+mtv@x570:~/Documents/GitHub/docker-rework$ docker image ls
+                                                                                                       i Info →   U  In Use
+IMAGE                                                         ID             DISK USAGE   CONTENT SIZE   EXTRA
+ghcr.io/epflxplore/cs:humble-desktop-new                      8dd5b10cec1d       4.09GB             0B        
+ghcr.io/epflxplore/docker_commons:humble-desktop-new          659658da7cfd       3.85GB             0B        
+ghcr.io/epflxplore/docker_commons:humble-desktop-nvidia-new   1dc8571d29ff       12.7GB             0B        
+ghcr.io/epflxplore/elec:humble-desktop-new                    87c659dfaf61       6.48GB             0B        
+ghcr.io/epflxplore/hd:humble-desktop-new                      715278d5cafd       12.7GB             0B        
+ghcr.io/epflxplore/nav:humble-desktop-new                     c8adf629fee9       15.8GB             0B        
+ghcr.io/epflxplore/rover:humble-desktop-new                   fd79595060ba       4.17GB             0B        
+ghcr.io/epflxplore/sc:humble-desktop-new                      74f3686d0816       12.8GB             0B        
+hello-world:latest                                            1b44b5a3e06a       10.1kB             0B    U   
+ubuntu:22.04                                                  9fa3e2b5204f       77.9MB             0B        
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/elec:humble-desktop-new
+6477639246
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/cs:humble-desktop-new
+4085185998
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/rover:humble-desktop-new
+4166916563
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/hd:humble-desktop-new
+12680638044
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/nav:humble-desktop-new
+15802006566
+mtv@x570:~/Documents/GitHub/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/sc:humble-desktop-new
+12757166158
