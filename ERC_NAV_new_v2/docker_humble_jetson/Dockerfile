@@ -38,7 +38,8 @@ RUN apt-get update && \
     git clone https://github.com/IntelRealSense/librealsense.git /librealsense && \
     cd /librealsense && \
     git submodule update --init --recursive && \
-    ./librealsense/scripts/setup_udev_rules.sh && \
+    bash scripts/setup_udev_rules.sh && \
+    mkdir /librealsense/build && \
     cd /librealsense/build && \
     cmake ../ \
         -DBUILD_PYTHON_BINDINGS:bool=true \
