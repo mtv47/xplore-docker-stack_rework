@@ -54,12 +54,6 @@ RUN apt-get update && apt-get install -y locales tzdata\
         vim \
         software-properties-common \
         git-core \
-        libglvnd0 \
-        libgl1 \
-        libglx0 \
-        libegl1 \
-        libxext6 \
-        libx11-6 \
     && add-apt-repository universe \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
@@ -113,6 +107,12 @@ RUN apt-get update && apt-get upgrade -y --fix-broken \
     && apt-get update && apt-get install -y --no-install-recommends \
         gazebo \
         libgazebo-dev \
+        libglvnd0 \
+        libgl1 \
+        libglx0 \
+        libegl1 \
+        libxext6 \
+        libx11-6 \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
     && apt-get clean
 

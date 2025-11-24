@@ -30,7 +30,12 @@ ENV QT_X11_NO_MITSHM 1
 
 # Install language and timezone
 # Create a non-root user and set up autocompletion for user
-RUN apt-get update && apt-get install -y locales tzdata\
+
+RUN rm /usr/share/keyrings/ros-archive-keyring.gpg \
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && apt update && apt install ros2-apt-source \
+    && rm /etc/apt/sources.list.d/ros2.list \
+    && apt-get update && apt-get install -y locales tzdata\
     && locale-gen en_US en_US.UTF-8 \   
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
     && ln -sf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
@@ -54,13 +59,6 @@ RUN apt-get update && apt-get install -y locales tzdata\
         ros-dev-tools \
         vim \
         git-core \
-    && apt-get install -y -qq --no-install-recommends \
-        libglvnd0 \
-        libgl1 \
-        libglx0 \
-        libegl1 \
-        libxext6 \
-        libx11-6 \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
     && apt-get clean \
     && rosdep init || echo "rosdep already initialized" \
@@ -97,6 +95,12 @@ RUN add-apt-repository ppa:openrobotics/gazebo11-non-amd64 \
         ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
         gazebo \
         libgazebo-dev \
+        libglvnd0 \
+        libgl1 \
+        libglx0 \
+        libegl1 \
+        libxext6 \
+        libx11-6 \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
     && apt-get clean \
     && usermod -aG dialout $USERNAME \

@@ -5,6 +5,11 @@ FROM dustynv/ros:humble-desktop-l4t-r36.2.0 AS base
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+RUN rm /usr/share/keyrings/ros-archive-keyring.gpg
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+RUN apt update && apt install ros2-apt-source  
+RUN rm /etc/apt/sources.list.d/ros2.list
+
 # Install language
 RUN apt-get update && apt-get install -y locales \
     && locale-gen en_US en_US.UTF-8 \

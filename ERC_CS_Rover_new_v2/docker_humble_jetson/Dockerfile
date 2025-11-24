@@ -6,13 +6,7 @@ FROM ghcr.io/epflxplore/docker_commons:humble-jetson
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Set up ROS repository, install packages, and configure USB rules
-RUN rm /usr/share/keyrings/ros-archive-keyring.gpg && \
-    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    apt update && \
-    apt install -y ros2-apt-source && \
-    rm /etc/apt/sources.list.d/ros2.list && \
-    rm /usr/share/keyrings/ros-archive-keyring.gpg && \
-    apt-get update && apt-get upgrade -y && \
+RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         curl \
         python3-opencv \
