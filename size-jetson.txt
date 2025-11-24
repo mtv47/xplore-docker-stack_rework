@@ -57,11 +57,24 @@ xplore@ubuntu:~/Documents/docker-rework$ docker inspect -f "{{ .Size }}" ghcr.io
 Stock NX HD Jetson Image Sizes
 ------------------
 docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/docker_commons:humble-jetson-nx-hd --target gazebo_nvidia .
-docker build --pull=false --no-cache --progress=plain -t glim-humble-jetson -f Dockerfile.glim ..
+docker build --pull=false --no-cache --progress=plain -t ghcr.io/epflxplore/hd:humble-jetson -f Dockerfile ..
+docker inspect -f "{{ .Size }}" dustynv/pytorch:2.1-r36.2.0
 docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-jetson-nx-hd
-docker inspect -f "{{ .Size }}" glim-humble-jetson
+docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/hd:humble-jetson
 ------------------
-
+xplore@ubuntu:~/Documents/docker-rework/ERC_HD/docker_humble_jetson$ docker image ls
+REPOSITORY                            TAG                   IMAGE ID       CREATED          SIZE
+ghcr.io/epflxplore/hd                 humble-jetson         2cde215add5c   14 minutes ago   19.6GB
+ghcr.io/epflxplore/docker_commons     humble-jetson-nx-hd   7878dc27462e   29 minutes ago   17.4GB
+docker_humble_desktop-vocal_command   latest                b9f865087a9b   8 months ago     4.53GB
+hello-world                           latest                f1f77a0f96b7   10 months ago    5.2kB
+dustynv/pytorch                       2.1-r36.2.0           7375169e6ff7   23 months ago    13.4GB
+xplore@ubuntu:~/Documents/docker-rework/ERC_HD/docker_humble_jetson$ docker inspect -f "{{ .Size }}" dustynv/pytorch:2.1-r36.2.0
+13431404737
+xplore@ubuntu:~/Documents/docker-rework/ERC_HD/docker_humble_jetson$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/docker_commons:humble-jetson-nx-hd
+17367501061
+xplore@ubuntu:~/Documents/docker-rework/ERC_HD/docker_humble_jetson$ docker inspect -f "{{ .Size }}" ghcr.io/epflxplore/hd:humble-jetson
+19642969620
 
 
 ------------------
