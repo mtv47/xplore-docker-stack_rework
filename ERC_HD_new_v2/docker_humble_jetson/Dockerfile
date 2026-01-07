@@ -47,7 +47,7 @@ RUN rm /usr/share/keyrings/ros-archive-keyring.gpg && \
         libyaml-cpp-dev \
         lcov && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* && \
-    apt-get clean && \
+    apt-get clean && apt-get autoremove -y\
     echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | tee /etc/udev/rules.d/80-movidius.rules && \
     echo '\
 # Load and unload nvidia-uvm module\n\
