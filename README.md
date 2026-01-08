@@ -95,6 +95,6 @@ The `size-desktop.txt` and `size-jetson.txt` files contain image size comparison
 ## Getting Started
 
 1. Choose your project and version
-2. Navigate to the appropriate directory
+2. Copy the files to the project directory that you want to set up (projects are on seperate Github repos)
 3. For base version: Use `./build.sh`, `./run.sh`, `./attach.sh`
 4. For _new and _new_v2: Use `make build`, `make run`, `make attach` (or see Makefile for available targets)
