@@ -11,17 +11,20 @@ Each project exists in three versions, representing progressive improvements to 
 #### **Base Version** (no suffix)
 - Original configuration using standalone Docker
 - Traditional bash scripts (`build.sh`, `run.sh`, `attach.sh`)
-- Standard Dockerfile structure
+- Standard Dockerfile structure (multiple RUN commands)
 
 #### **_new Version**
-- Migrated from Docker to **Docker Compose**
-- Bash scripts replaced with **Makefile** for better task management
-- Same Dockerfile layer structure as base version
+- Migrated to **Docker Compose** with enhanced configurations
+- Bash scripts replaced with comprehensive **Makefile** for better task management
+- Same Dockerfile layer structure as base version (not optimized)
+- Makefile includes color-coded output and helpful descriptions
 
 #### **_new_v2 Version**
 - Based on `_new` version (Docker Compose + Makefile)
-- **Optimized Dockerfile layers** for better caching and smaller image sizes
-- Improved build performance
+- **Optimized Dockerfile layers** using multi-command RUN statements (for better caching and smaller image sizes)
+- Adds cache cleanup commands (`rm -rf /var/lib/apt/lists/*`, `--no-cache-dir` for pip)
+- Same enhanced compose.yaml and Makefile as `_new` version
+- Improved build performance and smaller image sizes
 
 ### Projects
 
