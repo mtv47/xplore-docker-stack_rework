@@ -2,11 +2,11 @@ name: Docker CI
 
 on:
   push:
-    branches: ["humble"]
+    branches: ["master"]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: epflxplore/rover
+  IMAGE_NAME: epflxplore/sc
 
 jobs:
   delete-untagged-images:
@@ -26,7 +26,7 @@ jobs:
             repository: ${{ github.repository }}
             untagged_only: true
 
-  build-and-push-image-desktop:
+  build-and-push-image-amd64:
     runs-on: ubuntu-latest
 
     permissions:
@@ -90,14 +90,14 @@ jobs:
         with:
           file: ./docker_humble_desktop/Dockerfile
           context: .
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop-amd64
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop
           platforms: linux/amd64
           no-cache: true
           pull: true
           push: true
 
-  build-and-push-image-jetson:
-    runs-on: self-hosted
+  build-and-push-image-arm64:
+    runs-on: ubuntu-24.04-arm64
 
     permissions:
       contents: read
@@ -160,31 +160,8 @@ jobs:
         with:
           file: ./docker_humble_jetson/Dockerfile
           context: .
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-jetson-arm64
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-jetson
           platforms: linux/arm64
           no-cache: true
           pull: true
           push: true
-
-  create-manifest:
-    runs-on: ubuntu-latest
-    needs: [build-and-push-image-desktop, build-and-push-image-jetson]
-    
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Log in to GitHub Docker Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create and push multi-arch manifest
-        run: |
-          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-desktop-amd64 \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble-jetson-arm64
-          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:humble
